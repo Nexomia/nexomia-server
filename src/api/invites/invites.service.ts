@@ -10,7 +10,14 @@ class InviteRoot {
   channel: Channel[]
   guild: Guild[]
 }
-type InviteInfo = InviteRoot & InviteDocument
+
+type InviteData = InviteRoot & InviteDocument
+
+export class InviteInfo {
+  code: string
+  channel: ChannelShort
+  guild: GuildShort
+}
 
 @Injectable()
 export class InvitesService {
@@ -20,8 +27,8 @@ export class InvitesService {
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
   ) {}
 
-  async getInvite(inviteId): Promise<Invite> {
-    const inviteInfo = (await this.inviteModel.aggregate<InviteInfo>([
+  async getInvite(inviteId): Promise<InviteInfo> {
+    const inviteData = (await this.inviteModel.aggregate<InviteData>([
       {
         $match: {
           code: inviteId
@@ -46,17 +53,17 @@ export class InvitesService {
     ]))[0]
 
     const guild: GuildShort = {
-      id: inviteInfo.guild[0].id,
-      name: inviteInfo.guild[0].name,
-      members_count: inviteInfo.guild[0].members.length
+      id: inviteData.guild[0].id,
+      name: inviteData.guild[0].name,
+      members_count: inviteData.guild[0].members.length
     }
     const channel: ChannelShort = {
-      id: inviteInfo.channel[0].id,
-      name: inviteInfo.channel[0].name,
-      type: inviteInfo.channel[0].type
+      id: inviteData.channel[0].id,
+      name: inviteData.channel[0].name,
+      type: inviteData.channel[0].type
     }
     const invite = {
-      code: inviteInfo.code,
+      code: inviteData.code,
       guild,
       channel
     }

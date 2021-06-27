@@ -1,3 +1,6 @@
+import { Invite } from './../invites/schemas/invite.schema';
+import { Message } from './schemas/message.schema';
+import { Channel } from './schemas/channel.schema';
 import { AccessToken } from './../../interfaces/access-token.interface';
 import { GetChannelMessagesDto } from './dto/get-channel-messages.dto';
 import { AddDMRecipientDto } from './dto/add-dm-recipient.dto';
@@ -16,7 +19,7 @@ export class ChannelsController {
   constructor(private channelsService: ChannelsService) {}
 
   @Get(':channelId')
-  async get(@Param('channelId') cid) {
+  async get(@Param('channelId') cid): Promise<Channel> {
     return await this.channelsService.getChannel(cid)
   }
 
@@ -26,18 +29,17 @@ export class ChannelsController {
   }
 
   @Get(':channelId/messages')
-  async messages(@Param('channelId') cid, getChannelMessagesDto: GetChannelMessagesDto) {
+  async messages(@Param('channelId') cid, getChannelMessagesDto: GetChannelMessagesDto): Promise<Message[]> {
     return await this.channelsService.getChannelMessages(cid, getChannelMessagesDto)
   }
 
   @Get(':channelId/messages/:messageId')
-  async message(@Param() params) {
-    console.log(params)
+  async message(@Param() params): Promise<Message> {
     return await this.channelsService.getChannelMessage(params.channelId, params.messageId)
   }
 
   @Post(':channelId/messages')
-  async createMessage(@Param('channelId') cid, @Body() createMessageDto: CreateMessageDto, @DUser() user: AccessToken) {
+  async createMessage(@Param('channelId') cid, @Body() createMessageDto: CreateMessageDto, @DUser() user: AccessToken): Promise<Message> {
     return await this.channelsService.createMessage(user.id, cid, createMessageDto)
   }
 
@@ -47,12 +49,12 @@ export class ChannelsController {
   }
 
   @Put(':channelId/messages/:messageId/reactions/:emojiId/@me')
-  async createReaction(@Param() params, @DUser() user: AccessToken) {
+  async createReaction(@Param() params, @DUser() user: AccessToken): Promise<void> {
     return await this.channelsService.createReaction(params.channelId, params.messageId, params.emojiId, user.id)
   }
 
   @Delete(':channelId/messages/:messageId/reactions/:emojiId/:userId')
-  async deleteReaction(@Param() params, @DUser() user: AccessToken) {
+  async deleteReaction(@Param() params, @DUser() user: AccessToken): Promise<void> {
     if (params.userId === '@me') params.userId = user.id
     return await this.channelsService.deleteReaction(params.channelId, params.messageId, params.emojiId, params.userId)
   }
@@ -63,12 +65,12 @@ export class ChannelsController {
   }
 
   @Delete(':channelId/messages/:messageId/reactions')
-  async deleteReactions(@Param() params) {
+  async deleteReactions(@Param() params): Promise<void> {
     return await this.channelsService.deleteReactions(params.channelId, params.messegeId)
   }
 
   @Delete(':channelId/messages/:messageId/reactions/:emojiId')
-  async deleteReactionsForEmoji(@Param() params) {
+  async deleteReactionsForEmoji(@Param() params): Promise<void> {
     return await this.channelsService.deleteReactionsForEmoji(params.channelId, params.messegeId)
   }
 
@@ -93,12 +95,12 @@ export class ChannelsController {
   }
 
   @Get(':channelId/invites')
-  async getInvites(@Param('channelId') cid) {
+  async getInvites(@Param('channelId') cid): Promise<Invite[]> {
     return await this.channelsService.getInvites(cid)
   }
 
   @Post(':channelId/invites')
-  async creaateInvite(@Param('channelId') cid, @Body() createInviteDto: CreateInviteDto) {
+  async creaateInvite(@Param('channelId') cid, @Body() createInviteDto: CreateInviteDto): Promise<Invite> {
     return await this.channelsService.creaateInvite(cid, createInviteDto)
   }
 
@@ -113,12 +115,12 @@ export class ChannelsController {
   }
 
   @Put(':channelId/pins/:messageId')
-  async pinMessage(@Param() params) {
+  async pinMessage(@Param() params): Promise<void> {
     return await this.channelsService.pinMessage(params.channelId, params.messegeId)
   }
 
   @Delete(':channelId/pins/:messageId')
-  async deletePinnedMessage(@Param() params) {
+  async deletePinnedMessage(@Param() params): Promise<void> {
     return await this.channelsService.deletePinnedMessage(params.channelId, params.messegeId)
   }
 
