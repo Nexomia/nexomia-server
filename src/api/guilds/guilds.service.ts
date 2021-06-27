@@ -81,7 +81,7 @@ export class GuildsService {
     return await this.channelModel.find({ guild_id: guildId }).select('-_id').lean()
   }
 
-  async getMembers(guildId, userId) {
+  async getMembers(guildId, userId): Promise<ExtendedMember[]> {
     const guild: ExtendedGuild = (await this.guildModel.aggregate([
       {
         $match: {
