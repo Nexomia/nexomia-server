@@ -30,7 +30,6 @@
     "axios": "^0.21.1",
     "class-transformer": "^0.4.0",
     "class-validator": "^0.13.1",
-    "crypto": "^1.0.1",
     "express-fingerprint": "^1.2.2",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.11.17",
