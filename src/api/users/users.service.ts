@@ -58,7 +58,7 @@ export class UsersService {
   }
 
   async getChannels(userId): Promise<Channel[]> {
-    return await this.channelModel.find({ owner_id: userId }).lean()
+    return await this.channelModel.find({ owner_id: userId }).select('-_id').lean()
   }
 
   async createChannel(userId, channelData): Promise<Channel> {
