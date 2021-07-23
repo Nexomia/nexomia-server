@@ -1,3 +1,4 @@
+import { Role, RoleDocument } from './../guilds/schemas/role.schema';
 import { ChannelType } from './../channels/schemas/channel.schema';
 import { config } from './../../app.config';
 import { GuildDocument } from './../guilds/schemas/guild.schema';
@@ -15,7 +16,8 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
-    @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>
+    @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
+    @InjectModel(Role.name) private roleModel: Model<RoleDocument>
   ) {}
 
   async getUser(userId, me): Promise<User> {
@@ -50,10 +52,14 @@ export class UsersService {
 
   async leaveGuild(userId, guildId): Promise<void> {
     const guild = await this.guildModel.updateOne(
-      { id: guildId, owner_id: { $ne: userId } },
-      { $pull: { members: userId } }
+      { id: guildId, owner_id: { $ne: userId }, 'members.id': userId },
+      { $pull: { members: { id: userId } } }
     )
     if (!guild) throw new NotFoundException()
+    await this.roleModel.updateMany(
+      { guild_id: guildId, members: userId },
+      { $pull: { members: userId } }
+    )
     return
   }
 

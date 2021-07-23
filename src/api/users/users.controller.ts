@@ -37,7 +37,7 @@ export class UsersController {
   //Leave Guild
   @Delete('@me/guilds/:id')
   async leaveGuild(@Param('id') guildId, @DUser() user: AccessToken): Promise<void> {
-    return await this.usersService.leaveGuild(user, guildId)
+    return await this.usersService.leaveGuild(user.id, guildId)
   }
 
   //User DMs

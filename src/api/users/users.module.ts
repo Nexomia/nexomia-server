@@ -1,3 +1,4 @@
+import { Role, RoleSchema } from './../guilds/schemas/role.schema';
 import { Guild, GuildSchema } from './../guilds/schemas/guild.schema';
 import { User, UserSchema } from './schemas/user.schema';
 import { UsersController } from './users.controller';
@@ -11,7 +12,8 @@ import { Channel, ChannelSchema } from '../channels/schemas/channel.schema';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Guild.name, schema: GuildSchema },
-      { name: Channel.name, schema: ChannelSchema }
+      { name: Channel.name, schema: ChannelSchema },
+      { name: Role.name, schema: RoleSchema }
     ]),
   ],
   providers: [UsersService],
