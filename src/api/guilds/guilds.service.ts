@@ -45,6 +45,7 @@ export class GuildsService {
     role.id = new UniqueID(config.snowflake).getUniqueID()
     role.name = '@everyone'
     role.members.push(userId)
+    role.guild_id = guild.id
     await role.save()
 
     guild.roles.push(role.id)

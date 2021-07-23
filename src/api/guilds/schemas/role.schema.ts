@@ -9,6 +9,9 @@ export class Role {
   @Prop({ unique: true })
   id?: string;
 
+  @Prop()
+  guild_id: string;
+
   @Prop({ default: 'new role' })
   name?: string;
 
