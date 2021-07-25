@@ -64,10 +64,10 @@ export class Channel {
 
 export enum ChannelType {
   DM = 0,
-  GUILD_TEXT = 1,
-  GUILD_VOICE = 2,
-  GROUP_DM = 3,
-  GUILD_CATEGORY = 4,
+  GROUP_DM = 1,
+  GUILD_CATEGORY = 2,
+  GUILD_TEXT = 3,
+  GUILD_VOICE = 4,
   GUILD_NEWS = 5,
   GUILD_NEWS_THREAD = 6,
   GUILD_PUBLIC_THREAD = 7,

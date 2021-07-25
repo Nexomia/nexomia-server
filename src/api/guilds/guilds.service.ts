@@ -58,21 +58,27 @@ export class GuildsService {
   }
 
   async createChannel(guildId: string, channelDto: CreateChannelDto, userId: string): Promise<Channel> {
+    if (channelDto.type < 2) throw new BadRequestException()
     const channel = new this.channelModel()
     channel.id = new UniqueID(config.snowflake).getUniqueID()
     channel.name = channelDto.name
-    channel.type = ChannelType.GUILD_TEXT
+    channel.type = channelDto.type
     channel.guild_id = guildId
-    channel.nsfw = channelDto.nsfw
-    if (channelDto.topic) channel.topic = channelDto.topic
-    if (channelDto.position) channel.position = channelDto.position
-    if (channelDto.parent_id) channel.parent_id = channelDto.parent_id
-    if (channelDto.rate_limit_per_user) channel.rate_limit_per_user = channelDto.rate_limit_per_user
+
+    if (channelDto.type === ChannelType.GUILD_TEXT) {
+      channel.nsfw = channelDto.nsfw
+      if (channelDto.topic) channel.topic = channelDto.topic
+      if (channelDto.rate_limit_per_user) channel.rate_limit_per_user = channelDto.rate_limit_per_user
+    }
 
     if (channelDto.type === ChannelType.GUILD_VOICE) {
       if (channelDto.bitrate) channel.bitrate = channelDto.bitrate
       if (channelDto.user_limit) channel.user_limit = channelDto.user_limit
     }
+
+    if (channelDto.position) channel.position = channelDto.position
+    if (channelDto.parent_id) channel.parent_id = channelDto.parent_id
+
     await channel.save()
     const { _id, ...cleanedChannel } = channel.toObject()
     return cleanedChannel
