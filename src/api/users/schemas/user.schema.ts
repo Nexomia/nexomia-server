@@ -101,6 +101,12 @@ export class User {
   avatar?: string;
 
   /**
+   * The user's banner
+   */
+  @Prop({ default: '' })
+  banner?: string;
+
+  /**
    * The user's status
    */
   @Prop({ default: '' })

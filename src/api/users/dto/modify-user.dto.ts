@@ -4,4 +4,5 @@ export class ModifyUserDto {
   password?: string;
   discriminator?: string;
   avatar?: string;
+  banner?: string;
 }
