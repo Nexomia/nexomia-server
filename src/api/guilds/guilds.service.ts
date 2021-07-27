@@ -111,6 +111,7 @@ export class GuildsService {
         'users.username': 1,
         'users.discriminator': 1,
         'users.avatar': 1,
+        'users.banner': 1,
         'users.verified': 1,
         'users.flags': 1,
         'users.premium_type': 1,
