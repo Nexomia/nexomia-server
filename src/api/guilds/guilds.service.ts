@@ -49,7 +49,7 @@ export class GuildsService {
     role.name = '@everyone'
     role.members.push(userId)
     role.guild_id = guild.id
-    role.position = 999
+    role.position = 999 // I won't force this role to bottom every time creates new one
     role.permissions = {
       allow: 253696,
       deny: 0
@@ -179,6 +179,9 @@ export class GuildsService {
     await role.save()
     const { _id, ...cleanedRole } = role.toObject()
     return cleanedRole
+  }
+  async isMember(guildId: string, userId: string) {
+    return await this.guildModel.exists({ id: guildId })
   }
 }
 

@@ -41,7 +41,7 @@ export class Channel {
   rate_limit_per_user?: number;
 
   @Prop()
-  recipients?: User[];
+  recipients?: string[];
 
   @Prop()
   icon?: string;

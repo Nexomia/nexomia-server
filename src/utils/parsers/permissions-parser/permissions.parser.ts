@@ -59,39 +59,41 @@ export class PermissionsParser {
       permissions |= guildMember.permissions.allow
       return permissions
     }
-    
+
     rolesArray.push(userId)
-    const channel: Channel = (await 
-      this.channelModel.find({
-        id: channelId,
-        'permission_overwrites.id': { $in: rolesArray }
+    try {
+      const channel: Channel = (await 
+        this.channelModel.find({
+          id: channelId,
+          'permission_overwrites.id': { $in: rolesArray }
+        })
+        .sort({ 'permission_overwrites.type': -1 })
+      )[0]
+
+      let overwite_user: PermissionsOverwrite
+      if (channel.permission_overwrites[0].type === 1)
+        overwite_user = channel.permission_overwrites.shift()
+      const overwrites: PermissionsOverwrite[] = channel.permission_overwrites
+      overwrites.sort((a, b) => {
+        if (
+          (a.type === 0 && b.type === 0) &&
+          rolePositions[rolesArray.indexOf(a.id)] > rolePositions[rolesArray.indexOf(b.id)]
+        ) 
+          return -1
       })
-      .sort({ 'permission_overwrites.type': -1 })
-    )[0]
+      let allow: number
+      let deny: number
 
-    let overwite_user: PermissionsOverwrite
-    if (channel.permission_overwrites[0].type === 1)
-      overwite_user = channel.permission_overwrites.shift()
-    const overwrites: PermissionsOverwrite[] = channel.permission_overwrites
-    overwrites.sort((a, b) => {
-      if (
-        (a.type === 0 && b.type === 0) &&
-        rolePositions[rolesArray.indexOf(a.id)] > rolePositions[rolesArray.indexOf(b.id)]
-      ) 
-        return -1
-    })
-    let allow: number
-    let deny: number
+      for (const overwrite of overwrites) {
+        permissions &= ~overwrite.deny
+        permissions |= overwrite.allow
+      }
 
-    for (const overwrite of overwrites) {
-      permissions &= ~overwrite.deny
-      permissions |= overwrite.allow
-    }
-
-    if (overwite_user) {
-      permissions &= ~overwite_user.deny
-      permissions |= overwite_user.allow
-    }
+      if (overwite_user) {
+        permissions &= ~overwite_user.deny
+        permissions |= overwite_user.allow
+      }
+    } catch {/**There's no overwrite object, so mongo can't parse my query */}
 
     if (guildMember.permissions) {
       permissions &= ~guildMember.permissions.deny

@@ -16,7 +16,10 @@ export class Emoji {
   roles?: string[]; // roles allowed to use this emoji
 
   @Prop()
-  user_id?: string; // user object	user that created this emoji
+  owner_id: string; // user object	user that created this emoji
+
+  @Prop()
+  owner: boolean; // 0 - user, 1 - server
 
   @Prop()
   require_colons?: boolean; // whether this emoji must be wrapped in colons
