@@ -7,6 +7,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Module } from "@nestjs/common";
 import { GuildsService } from './guilds.service';
 import { GuildsController } from './guilds.controller';
+import { PermissionsParser } from 'src/utils/parsers/permissions-parser/permissions.parser';
 
 @Module({
   imports:[
@@ -18,7 +19,7 @@ import { GuildsController } from './guilds.controller';
       { name: Role.name, schema: RoleSchema }
     ]),
   ],
-  providers: [GuildsService],
+  providers: [GuildsService, PermissionsParser],
   controllers: [GuildsController]
 })
 

@@ -1,5 +1,6 @@
+import { RoleDto } from './dto/role.dto';
 import { User } from 'src/api/users/schemas/user.schema';
-import { Role, RoleDocument } from './schemas/role.schema';
+import { Role, RoleDocument, ComputedPermissions } from './schemas/role.schema';
 import { config } from './../../app.config';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { Channel, ChannelDocument, ChannelType } from './../channels/schemas/channel.schema';
@@ -9,6 +10,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UniqueID } from 'nodejs-snowflake';
+import { PermissionsParser } from 'src/utils/parsers/permissions-parser/permissions.parser';
 
 @Injectable()
 export class GuildsService {
@@ -16,6 +18,7 @@ export class GuildsService {
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    private permissionsParser: PermissionsParser,
   ) {}
 
   async getGuild(guildId, userId): Promise<Guild> {
@@ -46,6 +49,11 @@ export class GuildsService {
     role.name = '@everyone'
     role.members.push(userId)
     role.guild_id = guild.id
+    role.position = 999
+    role.permissions = {
+      allow: 253696,
+      deny: 0
+    }
     await role.save()
 
     guild.roles.push(role.id)
@@ -127,6 +135,50 @@ export class GuildsService {
       guild.members[member].user = guild.users[member]
 
     return guild.members
+  }
+
+  async getRoles(guildId: string): Promise<Role[]> {
+    return this.roleModel.find({ guild_id: guildId }).select('-_id').lean()
+  }
+
+  async getRole(guildId: string, roleId: string, userId): Promise<Role> {
+    return this.roleModel.findOne({ id: roleId, guild_id: guildId }).select('-_id').lean()
+  }
+
+  async createRole(guildId: string, createRoleDto: RoleDto): Promise<Role> {
+    const count = await this.roleModel.countDocuments({ guild_id: guildId })
+    console.log(count)
+    const role = new this.roleModel()
+    role.id = new UniqueID(config.snowflake).getUniqueID()
+    role.guild_id = guildId
+    role.position = createRoleDto?.position | count
+    if (createRoleDto.name) role.name = createRoleDto.name
+    if (createRoleDto.color) role.color = createRoleDto.color
+    if (createRoleDto.hoist) role.hoist = createRoleDto.hoist
+    if (createRoleDto.mentionable) role.mentionable = createRoleDto.mentionable
+    if (createRoleDto.permissions) {
+      role.permissions.allow = createRoleDto.permissions.allow &= ~(createRoleDto.permissions.deny | ComputedPermissions.OWNER)
+      role.permissions.deny = createRoleDto.permissions.deny
+    }
+    await role.save()
+    const { _id, ...cleanedRole } = role.toObject()
+    return cleanedRole
+  }
+
+  async patchRole(guildId: string, roleId: string, patchRoleDto: RoleDto) {
+    const role = await this.roleModel.findOne({ id: roleId, guild_id: guildId })
+    if (patchRoleDto.name) role.name = patchRoleDto.name
+    if (patchRoleDto.color) role.color = patchRoleDto.color
+    if (patchRoleDto.hoist) role.hoist = patchRoleDto.hoist
+    if (patchRoleDto.position) role.position = patchRoleDto.position
+    if (patchRoleDto.mentionable) role.mentionable = patchRoleDto.mentionable
+    if (patchRoleDto.permissions) {
+      role.permissions.allow = patchRoleDto.permissions.allow &= ~(patchRoleDto.permissions.deny | ComputedPermissions.OWNER)
+      role.permissions.deny = patchRoleDto.permissions.deny
+    }
+    await role.save()
+    const { _id, ...cleanedRole } = role.toObject()
+    return cleanedRole
   }
 }
 

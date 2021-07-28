@@ -20,7 +20,7 @@ export class Channel {
   position?: number;
 
   @Prop()
-  permission_overwrites?: string[];
+  permission_overwrites?: PermissionsOverwrite[];
 
   @Prop()
   name?: string;
@@ -78,6 +78,17 @@ export class ChannelShort {
   id: string
   name: string
   type: number
+}
+
+export class PermissionsOverwrite {
+  id: string
+  /**
+   * 0 - role
+   * 1 - member
+   */
+  type: 0 | 1
+  allow: number
+  deny: number
 }
 
 export type ChannelDocument = Channel & Document;

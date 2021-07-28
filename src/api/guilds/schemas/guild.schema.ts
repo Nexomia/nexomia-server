@@ -1,4 +1,4 @@
-import { Role } from './role.schema';
+import { Permissions, Role } from './role.schema';
 import { Emoji } from './../../emojis/schemas/emoji.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
@@ -195,11 +195,11 @@ export class GuildShort {
 
 export class GuildMember {
   id: string;
-  nick?: string;
+  nickname?: string;
   joined_at: number;
-  mute: boolean
-  deaf: boolean
-  permissions?: number
+  mute: boolean;
+  deaf: boolean;
+  permissions?: Permissions;
 }
 
 export type GuildDocument = Guild & Document;

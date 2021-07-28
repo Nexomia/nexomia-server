@@ -3,6 +3,11 @@ import { Document } from 'mongoose';
 
 export type RoleDocument = Role & Document;
 
+export class Permissions {
+  allow: number
+  deny: number
+}
+
 @Schema({ versionKey: false })
 export class Role {
 
@@ -18,8 +23,8 @@ export class Role {
   @Prop()
   members: string[];
 
-  // @Prop()
-  // permissions: Permissions;
+  @Prop()
+  permissions: Permissions;
 
   @Prop({ default: '#fff' })
   color?: string;
@@ -33,6 +38,30 @@ export class Role {
   @Prop({ default: true })
   mentionable?: boolean;
 
+  @Prop({ default: false })
+  default?: boolean;
 }
 
 export const RoleSchema = SchemaFactory.createForClass(Role);
+
+export enum ComputedPermissions {
+  OWNER = 1 << 0,
+  ADMINISTRATOR = 1 << 1,
+  CHANGE_MEMBER_NICKNAMES = 1 << 2, 
+  CREATE_INVITES = 1 << 3,
+  MANAGE_ROLES = 1 << 4,
+  MANAGE_GUILD = 1 << 5,
+  MANAGE_EMOJIS = 1 << 6,
+  MANAGE_MESSAGES = 1 << 7,
+  READ_MESSAGES = 1 << 8,
+  WRITE_MESSAGES = 1 << 9,
+  VOICE_MESSAGES = 1 << 10,
+  ATTACH_STICKERS = 1 << 11,
+  ATTACH_FILES = 1 << 12,
+  USE_EXTENDED_MARKDOWN = 1 << 13,
+  FORWARD_MESSAGES_FROM_SERVER = 1 << 14,
+  VIEW_CHANNEL = 1 << 15,
+  CHANGE_SELF_NICKNAME = 1 << 16,
+  ADD_REACTIONS = 1 << 17,
+  BULK_DELETE = 1 << 18
+}
