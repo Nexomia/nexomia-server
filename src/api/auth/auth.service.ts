@@ -65,8 +65,8 @@ export class AuthService {
     if (!decrypted) throw new UnauthorizedException()
     await this.userModel.updateOne(
       { id: decrypted.uid },
-      { $set: { verified: true }
-    })
+      { $set: { verified: true } }
+    )
     return
   }
 
