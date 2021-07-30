@@ -46,7 +46,7 @@ export class GuildsService {
 
     const role = new this.roleModel()
     role.id = new UniqueID(config.snowflake).getUniqueID()
-    role.name = '@everyone'
+    role.name = 'everyone'
     role.members.push(userId)
     role.guild_id = guild.id
     role.position = 999 // I won't force this role to bottom every time creates new one
