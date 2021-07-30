@@ -152,6 +152,10 @@ export class GuildsService {
     role.id = new UniqueID(config.snowflake).getUniqueID()
     role.guild_id = guildId
     role.position = createRoleDto?.position | count
+    role.permissions = {
+      allow: 0,
+      deny: 0
+    }
     if (createRoleDto.name) role.name = createRoleDto.name
     if (createRoleDto.color) role.color = createRoleDto.color
     if (createRoleDto.hoist) role.hoist = createRoleDto.hoist
