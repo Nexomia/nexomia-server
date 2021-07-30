@@ -45,7 +45,7 @@ export class ChannelsController {
 
   @Post(':channelId/messages/:messageId/crosspost')
   async crosspost(@Param() params) {
-    return await this.channelsService.crosspostMessage(params.channelId, params.messegeId)
+    return await this.channelsService.crosspostMessage(params.channelId, params.messageId)
   }
 
   @Put(':channelId/messages/:messageId/reactions/:emojiId/@me')
@@ -61,27 +61,28 @@ export class ChannelsController {
 
   @Get(':channelId/messages/:messageId/reactions/:emojiId')
   async getReactions(@Param() params) {
-    return await this.channelsService.getReactions(params.channelId, params.messegeId, params.emojiId)
+    return await this.channelsService.getReactions(params.channelId, params.messageId, params.emojiId)
   }
 
   @Delete(':channelId/messages/:messageId/reactions')
   async deleteReactions(@Param() params): Promise<void> {
-    return await this.channelsService.deleteReactions(params.channelId, params.messegeId)
+    return await this.channelsService.deleteReactions(params.channelId, params.messageId)
   }
 
   @Delete(':channelId/messages/:messageId/reactions/:emojiId')
   async deleteReactionsForEmoji(@Param() params): Promise<void> {
-    return await this.channelsService.deleteReactionsForEmoji(params.channelId, params.messegeId)
+    return await this.channelsService.deleteReactionsForEmoji(params.channelId, params.messageId)
   }
 
   @Patch(':channelId/messages/:messageId')
   async editMessage(@Param() params, @Body() editMessageDto: EditMessageDto) {
-    return await this.channelsService.editMessage(params.channelId, params.messegeId, editMessageDto)
+    return await this.channelsService.editMessage(params.channelId, params.messageId, editMessageDto)
   }
 
   @Delete(':channelId/messages/:messageId')
   async deleteMessage(@Param() params) {
-    return await this.channelsService.deleteMessage(params.channelId, params.messegeId)
+    console.log(params)
+    return await this.channelsService.deleteMessage(params.channelId, params.messageId)
   }
 
   @Post(':channelId/messages/bulk-delete')
@@ -116,12 +117,12 @@ export class ChannelsController {
 
   @Put(':channelId/pins/:messageId')
   async pinMessage(@Param() params, @DUser() user: AccessToken): Promise<void> {
-    return await this.channelsService.pinMessage(params.channelId, params.messegeId, user.id)
+    return await this.channelsService.pinMessage(params.channelId, params.messageId, user.id)
   }
 
   @Delete(':channelId/pins/:messageId')
   async deletePinnedMessage(@Param() params, @DUser() user: AccessToken): Promise<void> {
-    return await this.channelsService.deletePinnedMessage(params.channelId, params.messegeId, user.id)
+    return await this.channelsService.deletePinnedMessage(params.channelId, params.messageId, user.id)
   }
 
   @Put(':channelId/recipients/:userId')
