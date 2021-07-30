@@ -62,7 +62,10 @@ export class AuthService {
 
   async confirmEmail(code) {
     const decrypted = this.jwtService.decodeEmailToken(code)
-    await this.userModel.updateOne({ id: decrypted.uid }, { verified: true })
+    await this.userModel.updateOne(
+      { id: decrypted.uid },
+      { $set: { verified: true }
+    })
     return
   }
 
