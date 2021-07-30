@@ -1,8 +1,5 @@
-import { User, UserDocument } from './../../api/users/schemas/user.schema';
 import { config } from './../../app.config';
-import { InjectModel } from '@nestjs/mongoose';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { Model } from 'mongoose';
+import { Injectable } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import { AccessToken } from 'src/interfaces/access-token.interface';
 
@@ -30,7 +27,7 @@ export class JwtService {
     try {
       return <EmailToken>jwt.verify(token, config.jwt.secret)
     } catch (err) {
-      throw new UnauthorizedException()
+      return false
     }
   }
 
@@ -38,7 +35,7 @@ export class JwtService {
     try {
       return <AccessToken>jwt.verify(token, config.jwt.secret)
     } catch (err) {
-      throw new UnauthorizedException()
+      return false
     }
   }
 
