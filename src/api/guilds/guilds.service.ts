@@ -180,6 +180,7 @@ export class GuildsService {
       role.permissions.allow = patchRoleDto.permissions.allow &= ~(patchRoleDto.permissions.deny | ComputedPermissions.OWNER)
       role.permissions.deny = patchRoleDto.permissions.deny
     }
+    role.markModified('permissions')
     await role.save()
     const { _id, ...cleanedRole } = role.toObject()
     return cleanedRole
