@@ -10,15 +10,13 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UniqueID } from 'nodejs-snowflake';
-import { PermissionsParser } from 'src/utils/parsers/permissions-parser/permissions.parser';
 
 @Injectable()
 export class GuildsService {
   constructor(
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
-    @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
-    private permissionsParser: PermissionsParser,
+    @InjectModel(Role.name) private roleModel: Model<RoleDocument>
   ) {}
 
   async getGuild(guildId, userId): Promise<Guild> {
@@ -174,11 +172,17 @@ export class GuildsService {
     if (patchRoleDto.name) role.name = patchRoleDto.name
     if (patchRoleDto.color) role.color = patchRoleDto.color
     if (patchRoleDto.hoist) role.hoist = patchRoleDto.hoist
-    if (patchRoleDto.position) role.position = patchRoleDto.position
     if (patchRoleDto.mentionable) role.mentionable = patchRoleDto.mentionable
     if (patchRoleDto.permissions) {
       role.permissions.allow = patchRoleDto.permissions.allow &= ~(patchRoleDto.permissions.deny | ComputedPermissions.OWNER)
       role.permissions.deny = patchRoleDto.permissions.deny
+    }
+    if (patchRoleDto.position && patchRoleDto.position !== role.position) {
+      await this.roleModel.updateMany(
+        { guild_id: role.guild_id, position: { $gte: patchRoleDto.position, $lt: role.position } },
+        { $inc: { position: 1 } }
+      )
+      role.position = patchRoleDto.position
     }
     role.markModified('permissions')
     await role.save()
