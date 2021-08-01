@@ -1,6 +1,7 @@
+
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema';
 import { ComputedPermissions } from './../guilds/schemas/role.schema';
-import { PermissionsParser } from 'src/utils/parsers/permissions-parser/permissions.parser';
+import { Parser } from 'src/utils/parser/parser.utils';
 import { GuildsService } from './../guilds/guilds.service';
 import { config } from './../../app.config';
 import { Invite, InviteDocument } from './../invites/schemas/invite.schema';
@@ -21,7 +22,7 @@ export class ChannelsService {
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
     @InjectModel(Emoji.name) private emojiModel: Model<EmojiDocument>,
     private guildService: GuildsService,
-    private permissionsParser: PermissionsParser
+    private parser: Parser
   ) {}
 
   async getChannel(channelId): Promise<Channel> {
@@ -37,7 +38,7 @@ export class ChannelsService {
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
-    const perms = await this.permissionsParser.compute(channel.guild_id, userId, channelId)
+    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
     if (!(perms & (
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |
@@ -100,7 +101,7 @@ export class ChannelsService {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    const perms = await this.permissionsParser.compute(channel.guild_id, userId, channelId)
+    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
     if (!(perms & (
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |
@@ -155,12 +156,12 @@ export class ChannelsService {
 
   async createMessage(userId: string, channelId: string, messageDto: CreateMessageDto): Promise<Message> {
     
-    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+    const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
-
-    const perms = await this.permissionsParser.compute(channel.guild_id, userId, channelId)
+    console.log(channel)
+    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
     if (!(perms & (
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |
@@ -189,7 +190,7 @@ export class ChannelsService {
     // if (messageDto.attachments)
   return message.save()
     .then(msg => {
-      // тут надо будет по сокету отправлять мессаг
+            // тут надо будет по сокету отправлять мессаг
       delete msg['_id']
       delete msg['deleted']
       return msg
@@ -205,7 +206,7 @@ export class ChannelsService {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    const perms = await this.permissionsParser.compute(channel.guild_id, userId, channelId)
+    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
     if (!(perms & (
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |
@@ -293,7 +294,7 @@ export class ChannelsService {
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) throw new BadRequestException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    const perms = await this.permissionsParser.compute(channel.guild_id, userId, channelId)
+    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
     if (!(perms & (
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |
@@ -321,7 +322,7 @@ export class ChannelsService {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    const perms = await this.permissionsParser.compute(channel.guild_id, userId, channelId)
+    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
     if (!(perms & (
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |
@@ -342,7 +343,7 @@ export class ChannelsService {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    const perms = await this.permissionsParser.compute(channel.guild_id, userId, channelId)
+    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
     if (!(perms & (
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |

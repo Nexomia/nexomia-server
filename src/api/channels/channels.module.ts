@@ -1,5 +1,5 @@
 import { Emoji, EmojiSchema } from './../emojis/schemas/emoji.schema';
-import { PermissionsParser } from 'src/utils/parsers/permissions-parser/permissions.parser';
+import { Parser } from 'src/utils/parser/parser.utils';
 import { Role, RoleSchema } from './../guilds/schemas/role.schema';
 import { GuildsService } from './../guilds/guilds.service';
 import { User, UserSchema } from './../users/schemas/user.schema';
@@ -25,7 +25,7 @@ import { Guild, GuildSchema } from '../guilds/schemas/guild.schema';
     ]),
   ],
   controllers: [ChannelsController],
-  providers: [ChannelsService, GuildsService, PermissionsParser]
+  providers: [ChannelsService, GuildsService, Parser]
 })
 
 export class ChannelsModule {}

@@ -1,5 +1,6 @@
+import { PatchGuildDto } from './dto/patch-guild.dto';
 import { ComputedPermissions } from './schemas/role.schema';
-import { PermissionsParser } from 'src/utils/parsers/permissions-parser/permissions.parser';
+import { Parser } from 'src/utils/parser/parser.utils';
 import { RoleDto } from './dto/role.dto';
 import { Channel } from './../channels/schemas/channel.schema';
 import { Guild } from './schemas/guild.schema';
@@ -14,7 +15,7 @@ import { DUser } from 'src/decorators/user.decorator';
 export class GuildsController {
   constructor(
     private guildsService: GuildsService,
-    private permissionsParser: PermissionsParser
+    private parser: Parser
   ) {}
 
   @Get(':guildId')
@@ -61,7 +62,7 @@ export class GuildsController {
   @Post(':guildId/roles')
   async createRole(@Param('guildId') guildId: string, @Body() createRoleDto: RoleDto, @DUser() user: AccessToken) {
     if (!this.guildsService.isMember(guildId, user.id)) throw new ForbiddenException()
-    const perms = await this.permissionsParser.compute(guildId, user.id)
+    const perms = await this.parser.computePermissions(guildId, user.id)
     if (perms & (
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |
@@ -74,7 +75,7 @@ export class GuildsController {
   @Patch(':guildId/roles/:roleId')
   async patchRole(@Param() params, @Body() patchRoleDto: RoleDto, @DUser() user: AccessToken) {
     if (!this.guildsService.isMember(params.guildId, user.id)) throw new ForbiddenException()
-    const perms = await this.permissionsParser.compute(params.guildId, user.id)
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
     if (perms & (
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |

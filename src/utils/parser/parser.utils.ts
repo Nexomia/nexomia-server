@@ -1,13 +1,13 @@
-import { GuildDocument, GuildMember } from './../../../api/guilds/schemas/guild.schema';
-import { Role, RoleDocument, ComputedPermissions } from './../../../api/guilds/schemas/role.schema';
-import { Channel, ChannelDocument, PermissionsOverwrite } from './../../../api/channels/schemas/channel.schema';
+import { GuildDocument, GuildMember } from '../../api/guilds/schemas/guild.schema';
+import { Role, RoleDocument, ComputedPermissions } from '../../api/guilds/schemas/role.schema';
+import { Channel, ChannelDocument, PermissionsOverwrite } from '../../api/channels/schemas/channel.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Injectable } from '@nestjs/common';
 import { Guild } from 'src/api/guilds/schemas/guild.schema';
 import { Model } from 'mongoose';
 
 @Injectable()
-export class PermissionsParser {
+export class Parser {
   constructor(
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
@@ -18,7 +18,7 @@ export class PermissionsParser {
    * @param channelId optinonal, if you need get perms for channel
    * @returns int value for next compare with ComputedPermissions
    */
-  async compute(guildId: string, userId: string, channelId?: string): Promise<number> {
+  async computePermissions(guildId: string, userId: string, channelId?: string): Promise<number> {
     const guildOwner = await this.guildModel.exists({ id: guildId, owner_id: userId })
     if (guildOwner) return 1 << 0
 
