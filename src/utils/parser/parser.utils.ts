@@ -23,10 +23,13 @@ export class Parser {
     if (guildOwner) return 1 << 0
 
     const guildMember: GuildMember = (await 
-      this.guildModel.findOne({
-        id: guildId,
-        'members.id': userId
-      })
+      this.guildModel.findOne(
+        {
+          id: guildId,
+          'members.id': userId
+        },
+        'members.$'
+      )
     ).members[0]
 
     if (guildMember.permissions && guildMember.permissions.allow & (ComputedPermissions.OWNER | ComputedPermissions.ADMINISTRATOR)) 
@@ -44,9 +47,6 @@ export class Parser {
     for (const role of roles) {
       rolesArray.push(role.id)
       rolePositions.push(role.position)
-      if (role.permissions.allow & ComputedPermissions.ADMINISTRATOR) {
-        return role.permissions.allow
-      }
 
       permissions &= ~role.permissions.deny
       permissions |= role.permissions.allow
