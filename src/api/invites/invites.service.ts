@@ -86,7 +86,7 @@ export class InvitesService {
     await guild.save()
     const updatedGuild = guild.toObject()
     await this.roleModel.updateOne(
-      { id: guild.roles[0] },
+      { guild_id: guild.id, default: true },
       { $push: { members: userId } }
     )
     delete updatedGuild.members
