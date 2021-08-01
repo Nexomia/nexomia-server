@@ -78,16 +78,10 @@ export class Guild {
   default_message_notifications?: number;
 
   /**
-   * Roles in the guild
+   * Guild's default channel
    */
   @Prop()
-  roles?: Role[];
-
-  /**
-   * Custom guild emojis
-   */
-  @Prop()
-  emojis?: Emoji[];
+  default_channel?: string;
 
   /**
    * Enabled guild features
@@ -130,18 +124,6 @@ export class Guild {
    */
   @Prop()
   members?: GuildMember[];
-
-  /**
-   * Channels in the guild
-   */
-  @Prop()
-  channels?: string[];
-
-  /**
-   * All active threads in the guild that current user has permission to view
-   */
-  @Prop()
-  threads?: string[];
 
   /**
    * The vanity url code for the guild

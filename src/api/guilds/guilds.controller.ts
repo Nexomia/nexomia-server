@@ -84,4 +84,17 @@ export class GuildsController {
     ) return await this.guildsService.patchRole(params.guildId, params.roleId, patchRoleDto)
     else throw new ForbiddenException()
   }
+
+  @Patch(':guildId')
+  async patchGuild(@Param() params, @Body() patchGuildDto: PatchGuildDto, @DUser() user: AccessToken) {
+    if (!this.guildsService.isMember(params.guildId, user.id)) throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (perms & (
+      ComputedPermissions.OWNER |
+      ComputedPermissions.ADMINISTRATOR |
+      ComputedPermissions.MANAGE_GUILD
+      )
+    ) return await this.guildsService.patchGuild(params.guildId, patchGuildDto)
+    else throw new ForbiddenException()
+  }
 }

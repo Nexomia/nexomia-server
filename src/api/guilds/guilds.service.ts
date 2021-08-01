@@ -1,3 +1,4 @@
+import { PatchGuildDto } from './dto/patch-guild.dto';
 import { RoleDto } from './dto/role.dto';
 import { User } from 'src/api/users/schemas/user.schema';
 import { Role, RoleDocument, ComputedPermissions } from './schemas/role.schema';
@@ -54,13 +55,37 @@ export class GuildsService {
     }
     await role.save()
 
-    guild.roles.push(role.id)
     await guild.save()
     const { _id, ...cleanedGuild } = guild.toObject()
 
     return cleanedGuild
 
     // Тут надо будет дописать доп функционал для создания  сервера с канлами, ролями, кароч что-то ака шаблонов
+  }
+
+  async patchGuild(guildId: string, patchGuildDto: PatchGuildDto): Promise<Guild> {
+    const guild = await this.guildModel.findOne({ id: guildId })
+    if (patchGuildDto.name && patchGuildDto.name !== guild.name)
+      guild.name = patchGuildDto.name
+    if (patchGuildDto.description && patchGuildDto.description !== guild.name)
+      guild.description = patchGuildDto.description
+    if (patchGuildDto.system_channel_id && patchGuildDto.system_channel_id !== guild.system_channel_id) {
+      if (await this.channelModel.exists({ guild_id: guild.id, id: patchGuildDto.system_channel_id }))
+        guild.system_channel_id = patchGuildDto.system_channel_id
+    }
+    if (patchGuildDto.default_channel && patchGuildDto.default_channel !== guild.default_channel) {
+      if (await this.channelModel.exists({ guild_id: guild.id, id: patchGuildDto.default_channel }))
+        guild.default_channel = patchGuildDto.default_channel
+    }
+    if (patchGuildDto.icon && patchGuildDto.icon !== guild.icon) //will change later
+      guild.icon = patchGuildDto.icon
+    if (patchGuildDto.banner && patchGuildDto.banner !== guild.banner) //will change later
+      guild.banner = patchGuildDto.banner
+    if (patchGuildDto.preferred_locale && patchGuildDto.preferred_locale !== guild.preferred_locale) //will change later
+      guild.preferred_locale = patchGuildDto.preferred_locale
+    await guild.save()
+    const { _id, members, owner_id, features, ...cleanedGuild } = guild.toObject() //will change later
+    return cleanedGuild
   }
 
   async createChannel(guildId: string, channelDto: CreateChannelDto, userId: string): Promise<Channel> {
