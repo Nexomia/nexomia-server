@@ -1,3 +1,4 @@
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PatchGuildDto } from './dto/patch-guild.dto';
 import { RoleDto } from './dto/role.dto';
 import { User } from 'src/api/users/schemas/user.schema';
@@ -7,17 +8,20 @@ import { CreateChannelDto } from './dto/create-channel.dto';
 import { Channel, ChannelDocument, ChannelType } from './../channels/schemas/channel.schema';
 import { Guild, GuildDocument, GuildMember } from './schemas/guild.schema';
 import { CreateGuildDto } from './dto/create-guild.dto';
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, CACHE_MANAGER } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UniqueID } from 'nodejs-snowflake';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class GuildsService {
   constructor(
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
-    @InjectModel(Role.name) private roleModel: Model<RoleDocument>
+    @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    @Inject(CACHE_MANAGER) private onlineManager: Cache,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async getGuild(guildId, userId): Promise<Guild> {
@@ -48,6 +52,8 @@ export class GuildsService {
     role.name = 'everyone'
     role.members.push(userId)
     role.guild_id = guild.id
+    role.default = true
+    role.hoist = true
     role.position = 999 // I won't force this role to bottom every time creates new one
     role.permissions = {
       allow: 253696,
@@ -85,6 +91,16 @@ export class GuildsService {
       guild.preferred_locale = patchGuildDto.preferred_locale
     await guild.save()
     const { _id, members, owner_id, features, ...cleanedGuild } = guild.toObject() //will change later
+
+    const data = {
+      event: 'guild.patched',
+      data: cleanedGuild
+    }
+    this.eventEmitter.emit(
+      'guild.patched',
+      data, 
+      guildId
+    )
     return cleanedGuild
   }
 
@@ -112,6 +128,17 @@ export class GuildsService {
 
     await channel.save()
     const { _id, ...cleanedChannel } = channel.toObject()
+
+    const data = {
+      event: 'guild.channel_created',
+      data: cleanedChannel
+    }
+    this.eventEmitter.emit(
+      'guild.channel_created',
+      data, 
+      guildId
+    )
+
     return cleanedChannel
   }
 
@@ -189,6 +216,17 @@ export class GuildsService {
     }
     await role.save()
     const { _id, ...cleanedRole } = role.toObject()
+
+    const data = {
+      event: 'guild.role_created',
+      data: cleanedRole
+    }
+    this.eventEmitter.emit(
+      'guild.role_created',
+      data, 
+      guildId
+    )
+
     return cleanedRole
   }
 
@@ -196,7 +234,7 @@ export class GuildsService {
     const role = await this.roleModel.findOne({ id: roleId, guild_id: guildId })
     if (patchRoleDto.name) role.name = patchRoleDto.name
     if (patchRoleDto.color) role.color = patchRoleDto.color
-    if (patchRoleDto.hoist) role.hoist = patchRoleDto.hoist
+    if (patchRoleDto.hoist && !role.default) role.hoist = patchRoleDto.hoist
     if (patchRoleDto.mentionable) role.mentionable = patchRoleDto.mentionable
     if (patchRoleDto.permissions) {
       role.permissions.allow = patchRoleDto.permissions.allow &= ~(patchRoleDto.permissions.deny | ComputedPermissions.OWNER)
@@ -211,7 +249,18 @@ export class GuildsService {
     }
     role.markModified('permissions')
     await role.save()
-    const { _id, ...cleanedRole } = role.toObject()
+    const { _id, members, ...cleanedRole } = role.toObject()
+
+    const data = {
+      event: 'guild.role_patched',
+      data: cleanedRole
+    }
+    this.eventEmitter.emit(
+      'guild.role_patched',
+      data, 
+      guildId
+    )
+
     return cleanedRole
   }
   async isMember(guildId: string, userId: string) {

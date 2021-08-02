@@ -3,12 +3,15 @@ import { Guild, GuildSchema } from './../guilds/schemas/guild.schema';
 import { User, UserSchema } from './schemas/user.schema';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
-import { Module } from "@nestjs/common";
+import { CacheModule, Module } from "@nestjs/common";
 import { MongooseModule } from '@nestjs/mongoose';
 import { Channel, ChannelSchema } from '../channels/schemas/channel.schema';
 
 @Module({
   imports: [
+    CacheModule.register({
+      ttl: 60 * 60 * 24 * 365,
+    }),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Guild.name, schema: GuildSchema },

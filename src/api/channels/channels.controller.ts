@@ -80,14 +80,14 @@ export class ChannelsController {
   }
 
   @Delete(':channelId/messages/:messageId')
-  async deleteMessage(@Param() params) {
+  async deleteMessage(@Param() params, @DUser() user: AccessToken) {
     console.log(params)
-    return await this.channelsService.deleteMessage(params.channelId, params.messageId)
+    return await this.channelsService.deleteMessage(params.channelId, params.messageId, user.id)
   }
 
   @Post(':channelId/messages/bulk-delete')
-  async deleteMessages(@Param() params, @Body() bulkDeleteDto: BulkDeleteDto) {
-    return await this.channelsService.deleteMessages(params.channelId, bulkDeleteDto)
+  async deleteMessages(@Param() params, @Body() bulkDeleteDto: BulkDeleteDto, @DUser() user: AccessToken) {
+    return await this.channelsService.deleteMessages(params.channelId, bulkDeleteDto.messages, user.id)
   }
 
   @Put(':channelId/permissions/:overwriteId')

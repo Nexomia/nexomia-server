@@ -5,7 +5,7 @@ import { GuildsService } from './../guilds/guilds.service';
 import { User, UserSchema } from './../users/schemas/user.schema';
 import { Invite, InviteSchema } from './../invites/schemas/invite.schema';
 import { Message, MessageSchema } from './schemas/message.schema';
-import { Module } from "@nestjs/common";
+import { CacheModule, Module } from "@nestjs/common";
 import { MongooseModule } from '@nestjs/mongoose';
 import { ChannelsController } from './channels.controller';
 import { ChannelsService } from './channels.service';
@@ -14,6 +14,9 @@ import { Guild, GuildSchema } from '../guilds/schemas/guild.schema';
 
 @Module({
   imports: [
+    CacheModule.register({
+      ttl: 60 * 60 * 24 * 365,
+    }),
     MongooseModule.forFeature([
       { name: Guild.name, schema: GuildSchema },
       { name: Role.name, schema: RoleSchema },
@@ -24,6 +27,7 @@ import { Guild, GuildSchema } from '../guilds/schemas/guild.schema';
       { name: Emoji.name, schema: EmojiSchema }
     ]),
   ],
+
   controllers: [ChannelsController],
   providers: [ChannelsService, GuildsService, Parser]
 })

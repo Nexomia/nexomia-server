@@ -10,9 +10,11 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { Channel, ChannelDocument, ChannelType } from './schemas/channel.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Message, MessageDocument } from './schemas/message.schema';
-import { BadRequestException, Injectable, NotFoundException, InternalServerErrorException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, InternalServerErrorException, ForbiddenException, Inject, CACHE_MANAGER } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { UniqueID } from 'nodejs-snowflake';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class ChannelsService {
@@ -21,8 +23,10 @@ export class ChannelsService {
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
     @InjectModel(Emoji.name) private emojiModel: Model<EmojiDocument>,
+    @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private guildService: GuildsService,
-    private parser: Parser
+    private parser: Parser,
+    private eventEmitter: EventEmitter2
   ) {}
 
   async getChannel(channelId): Promise<Channel> {
@@ -154,13 +158,12 @@ export class ChannelsService {
     return ready[0]
   }
 
-  async createMessage(userId: string, channelId: string, messageDto: CreateMessageDto): Promise<Message> {
+  async createMessage(userId: string, channelId: string, messageDto: CreateMessageDto): Promise<any> /* will fix later */ {
     
     const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
-    console.log(channel)
     const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
     if (!(perms & (
       ComputedPermissions.OWNER |
@@ -188,14 +191,19 @@ export class ChannelsService {
     // if (messageDto.embed)
     // if (nmessageDto.resents)
     // if (messageDto.attachments)
-  return message.save()
-    .then(msg => {
-            // тут надо будет по сокету отправлять мессаг
-      delete msg['_id']
-      delete msg['deleted']
-      return msg
-    })
-    .catch(error => { throw new InternalServerErrorException() })
+    await message.save()
+    const { _id, deleted, edit_history, resentRevs, resentIds, ...cleanedMessage } = message.toObject()
+
+    const data = {
+      event: 'message.created',
+      data: cleanedMessage
+    }
+    this.eventEmitter.emit(
+      'message.created',
+      data, 
+      channel?.guild_id
+    )
+    return cleanedMessage
   }
 
   async crosspostMessage(channelId, messageId) {}
@@ -206,20 +214,21 @@ export class ChannelsService {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
-    if (!(perms & (
-      ComputedPermissions.OWNER |
-      ComputedPermissions.ADMINISTRATOR |
-      ComputedPermissions.ADD_REACTIONS
-    ))) throw new ForbiddenException()
-    
-    if (!(perms & 
-      ComputedPermissions.OWNER |
-      ComputedPermissions.ADMINISTRATOR |
-      ComputedPermissions.ADD_EXTERNAL_REACTIONS) 
-      && channel.type > 2
-      && !await this.emojiModel.exists({ id: emojiId, owner_id: channel.guild_id }))
-      throw new ForbiddenException()
+    if (channel.type > 2) {
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.ADD_REACTIONS
+      ))) throw new ForbiddenException()
+      
+      if (!(perms & 
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.ADD_EXTERNAL_REACTIONS) 
+        && !await this.emojiModel.exists({ id: emojiId, owner_id: channel.guild_id }
+      )) throw new ForbiddenException()
+    }
 
     const message = await this.messageModel.findOne({ id: messageId, channel_id: channelId })
     const reactionIndex = message.reactions.findIndex(reaction => reaction.emoji_id == emojiId)
@@ -232,6 +241,22 @@ export class ChannelsService {
     }
     message.markModified('reactions')
     await message.save()
+
+    const data = {
+      event: 'message.reaction_added',
+      data: {
+        emoji_id: emojiId,
+        user_id: userId,
+        message_id: messageId,
+        channel_id: channelId
+      }
+    }
+    this.eventEmitter.emit(
+      'message.reaction_added',
+      data, 
+      channel?.guild_id
+    )
+
     return
   
   }
@@ -251,6 +276,22 @@ export class ChannelsService {
     if (!message.reactions[reactionIndex].users.length) message.reactions.splice(reactionIndex, 1)
     message.markModified('reactions')
     await message.save()
+
+    const data = {
+      event: 'message.reaction_deleted',
+      data: {
+        emoji_id: emojiId,
+        user_id: userId,
+        message_id: messageId,
+        channel_id: channelId
+      }
+    }
+    this.eventEmitter.emit(
+      'message.reaction_deleted',
+      data, 
+      channel?.guild_id
+    )
+
     return
   }
 
@@ -262,18 +303,88 @@ export class ChannelsService {
 
   async editMessage(channelId, messageId, message) {}
 
-  async deleteMessage(channelId, messageId): Promise<void> {
-    await this.messageModel.updateOne(
-      { id: messageId, channel_id: channelId },
-      { $set: { deleted: true } }
+  async deleteMessage(channelId, messageId, userId): Promise<void> {
+    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+      if (!channel.recipients.includes(userId)) throw new ForbiddenException()
+    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+
+    const message = await this.messageModel.findOne({ id: messageId }, '-_id author')
+
+    if (message.author === userId) {
+      await this.messageModel.updateOne(
+        { id: messageId, channel_id: channelId },
+        { $set: { deleted: true } }
+      )
+    } else if (channel.type === ChannelType.GUILD_TEXT || channel.type === ChannelType.GUILD_PUBLIC_THREAD) {
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_MESSAGES
+      ))) throw new ForbiddenException()
+
+      await this.messageModel.updateOne(
+        { id: messageId, channel_id: channelId },
+        { $set: { deleted: true } }
+      )
+    } else throw new ForbiddenException()
+
+    const data = {
+      event: 'message.deleted',
+      data: {
+        id: messageId,
+        channel_id: channelId,
+        author: message.author,
+        deleted_by: userId
+      }
+    }
+    this.eventEmitter.emit(
+      'message.deleted',
+      data,
+      channel?.guild_id
     )
+
     return
   }
 
-  async deleteMessages(channelId, messageIds) {
-    await this.messageModel.updateMany(
-      { id: messageIds, channel_id: channelId },
-      { $set: { deleted: true } }
+  async deleteMessages(channelId: string, messageIds: string[], userId: string) {
+    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+      if (!channel.recipients.includes(userId)) throw new ForbiddenException()
+    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+
+    const messages = await this.messageModel.find({ id: messageIds, author: userId })
+    if (messageIds.length === messages.length) {
+      await this.messageModel.updateMany(
+        { id: messageIds, channel_id: channelId },
+        { $set: { deleted: true } }
+      )
+    } else {
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.BULK_DELETE
+      ))) throw new ForbiddenException()
+      await this.messageModel.updateMany(
+        { id: messageIds, channel_id: channelId },
+        { $set: { deleted: true } }
+      )
+    }
+
+    const data = {
+      event: 'message.bulk_deleted',
+      data: {
+        id: messageIds,
+        channel_id: channelId,
+        deleted_by: userId
+      }
+    }
+    this.eventEmitter.emit(
+      'message.bulk_deleted',
+      data,
+      channel?.guild_id
     )
     return
   }
@@ -283,7 +394,7 @@ export class ChannelsService {
   async getInvites(channelId) {
     const invites = await this.inviteModel.find(
       { channel_id: channelId },
-      '-_id -__v'
+      '-_id'
     )
     return invites
   }
@@ -334,6 +445,20 @@ export class ChannelsService {
       { id: channelId },
       { $push: { pinned_messages_ids: messageId } }
     )
+
+    const data = {
+      event: 'message.pinned',
+      data: {
+        id: messageId,
+        channel_id: channelId,
+      }
+    }
+    this.eventEmitter.emit(
+      'message.pinned',
+      data, 
+      channel?.guild_id
+    )
+    
     return
   }
 
@@ -354,6 +479,20 @@ export class ChannelsService {
       { id: channelId },
       { $pull: { pinned_messages_ids: messageId } }
     )
+
+    const data = {
+      event: 'message.unpinned',
+      data: {
+        id: messageId,
+        channel_id: channelId,
+      }
+    }
+    this.eventEmitter.emit(
+      'message.unpinned',
+      data, 
+      channel?.guild_id
+    )
+
     return
   }
 

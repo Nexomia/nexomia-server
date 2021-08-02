@@ -1,15 +1,17 @@
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Role, RoleDocument } from './../guilds/schemas/role.schema';
 import { ChannelType } from './../channels/schemas/channel.schema';
 import { config } from './../../app.config';
 import { GuildDocument } from './../guilds/schemas/guild.schema';
 import { ModifyUserDto } from './dto/modify-user.dto';
 import { Model } from 'mongoose';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, CACHE_MANAGER, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import { Channel, ChannelDocument } from '../channels/schemas/channel.schema';
 import { Guild } from '../guilds/schemas/guild.schema';
 import { UniqueID } from 'nodejs-snowflake';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class UsersService {
@@ -17,7 +19,9 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
-    @InjectModel(Role.name) private roleModel: Model<RoleDocument>
+    @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    @Inject(CACHE_MANAGER) private onlineManager: Cache,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async getUser(userId, me): Promise<User> {
@@ -43,6 +47,17 @@ export class UsersService {
     .select('-_id id username discriminator avatar banner verified flags premium_type public_flags email')
     .lean()
     if (!modifiedUser) throw new NotFoundException()
+
+    const data = {
+      event: 'user.patched',
+      data: modifiedUser
+    }
+    this.eventEmitter.emit(
+      'user.patched',
+      data, 
+      userId
+    )
+
     return modifiedUser
   }
 
@@ -60,11 +75,24 @@ export class UsersService {
       { guild_id: guildId, members: userId },
       { $pull: { members: userId } }
     )
+
+    const data = {
+      event: 'guild.user_left',
+      data: {
+        id: userId
+      }
+    }
+    this.eventEmitter.emit(
+      'guild.user_left',
+      data,
+      guildId
+    )
+
     return
   }
 
   async getChannels(userId): Promise<Channel[]> {
-    return await this.channelModel.find({ owner_id: userId }).select('-_id').lean()
+    return await this.channelModel.find({ 'recipients': { $in: userId } }).select('-_id').lean()
   }
 
   async createChannel(userId, channelData): Promise<Channel> {
@@ -75,6 +103,17 @@ export class UsersService {
     channel.recipients.push(userId, channelData.recipernt_id)
     await channel.save()
     const { _id, ...cleanedChannel } = channel.toObject()
+
+    const data = {
+      event: 'channel.created',
+      data: cleanedChannel
+    }
+    this.eventEmitter.emit(
+      'channel.created',
+      data,
+      channel.id
+    )
+
     return cleanedChannel
   }
 }

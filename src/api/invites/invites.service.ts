@@ -1,3 +1,4 @@
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Role, RoleDocument } from './../guilds/schemas/role.schema';
 import { Invite, InviteDocument } from './schemas/invite.schema';
 import { Guild, GuildDocument, GuildShort, GuildMember } from './../guilds/schemas/guild.schema';
@@ -25,6 +26,7 @@ export class InvitesService {
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async getInvite(inviteId): Promise<InviteInfo> {
@@ -90,6 +92,19 @@ export class InvitesService {
       { $push: { members: userId } }
     )
     delete updatedGuild.members
+
+    const data = {
+      event: 'guild.joined',
+      data: {
+        id: userId
+      }
+    }
+    this.eventEmitter.emit(
+      'guild.user_left',
+      data,
+      guild.id
+    )
+    
     return updatedGuild
   }
 }
