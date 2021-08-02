@@ -241,10 +241,16 @@ export class GuildsService {
       role.permissions.deny = patchRoleDto.permissions.deny
     }
     if (patchRoleDto.position && patchRoleDto.position !== role.position) {
-      await this.roleModel.updateMany(
-        { guild_id: role.guild_id, position: { $gte: patchRoleDto.position, $lt: role.position } },
-        { $inc: { position: 1 } }
-      )
+      if (patchRoleDto.position < role.position)
+        await this.roleModel.updateMany(
+          { guild_id: role.guild_id, position: { $gte: patchRoleDto.position, $lt: role.position } },
+          { $inc: { position: 1 } }
+        )
+      else
+        await this.roleModel.updateMany(
+          { guild_id: role.guild_id, position: { $lte: patchRoleDto.position, $gt: role.position } },
+          { $inc: { position: -1 } }
+        )
       role.position = patchRoleDto.position
     }
     role.markModified('permissions')
