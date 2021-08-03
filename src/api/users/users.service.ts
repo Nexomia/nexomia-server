@@ -28,12 +28,12 @@ export class UsersService {
     const user: User = await this.userModel.findOne(
       { id: userId }
     )
-    .select('-_id id username discriminator avatar banner premium_type public_flags email')
+    .select('-_id id username discriminator avatar banner verified premium_type public_flags email')
     .lean()
     if (!user) throw new NotFoundException()
     if (me) return user
     else {
-      const { email, ...cleanedUser } = user
+      const { email, verified, ...cleanedUser } = user
       return cleanedUser
     }
 
@@ -44,7 +44,7 @@ export class UsersService {
       { id: userId },
       { modifyData }
     )
-    .select('-_id id username discriminator avatar banner premium_type public_flags email')
+    .select('-_id id username discriminator avatar banner verified premium_type public_flags email')
     .lean()
     if (!modifiedUser) throw new NotFoundException()
 
