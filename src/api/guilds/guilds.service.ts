@@ -104,7 +104,7 @@ export class GuildsService {
     return cleanedGuild
   }
 
-  async createChannel(guildId: string, channelDto: CreateChannelDto, userId: string): Promise<Channel> {
+  async createChannel(guildId: string, channelDto: CreateChannelDto): Promise<Channel> {
     if (channelDto.type < 2) throw new BadRequestException()
     const channel = new this.channelModel()
     channel.id = new UniqueID(config.snowflake).getUniqueID()
