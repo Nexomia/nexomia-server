@@ -76,6 +76,15 @@ export class UsersService {
       { $pull: { members: userId } }
     )
 
+    let membersStr: string = await this.onlineManager.get(guildId)
+    if (membersStr) {
+      let members: string[] = JSON.parse(membersStr)
+      const index = members.indexOf(userId)
+      if (index >= 0)
+        members.splice(index, 1)
+        await this.onlineManager.set(guildId, JSON.stringify(members))
+    }
+
     const data = {
       event: 'guild.user_left',
       data: {
@@ -103,6 +112,14 @@ export class UsersService {
     channel.recipients.push(userId, channelData.recipernt_id)
     await channel.save()
     const { _id, ...cleanedChannel } = channel.toObject()
+
+    let members: string[] = []
+    for (const recipient of channel.recipients) {
+    if (await this.onlineManager.get(recipient))
+      members.push(recipient)
+    }
+    if (members.length)
+      await this.onlineManager.set(channel.id, JSON.stringify(members))
 
     const data = {
       event: 'channel.created',

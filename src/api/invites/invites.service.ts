@@ -3,9 +3,10 @@ import { Role, RoleDocument } from './../guilds/schemas/role.schema';
 import { Invite, InviteDocument } from './schemas/invite.schema';
 import { Guild, GuildDocument, GuildShort, GuildMember } from './../guilds/schemas/guild.schema';
 import { Channel, ChannelShort } from './../channels/schemas/channel.schema';
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, CACHE_MANAGER } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Cache } from 'cache-manager';
 
 class InviteRoot {
   channel: Channel[]
@@ -26,6 +27,7 @@ export class InvitesService {
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
   ) {}
 
@@ -104,7 +106,14 @@ export class InvitesService {
       data,
       guild.id
     )
-    
+    if (await this.onlineManager.get(userId)) {
+      let membersStr: string = await this.onlineManager.get(guild.id)
+      let members: string[] = []
+      if (membersStr) 
+        members = members.concat(JSON.parse(membersStr))
+      members.push(userId)
+      await this.onlineManager.set(guild.id, JSON.stringify(members))
+    }
     return updatedGuild
   }
 }
