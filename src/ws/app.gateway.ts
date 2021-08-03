@@ -267,7 +267,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   @OnEvent('guild.*')
   async guild(data, guildId: string) {
-    let recipients: string[]
+    let recipients: string[] = []
     let membersStr: string = await this.onlineManager.get(guildId)
     if (membersStr) 
       recipients = JSON.parse(membersStr)
