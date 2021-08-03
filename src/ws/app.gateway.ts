@@ -32,7 +32,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
   }
 
   async handleConnection(client: any, ...args: any[]) {
-    const user: AccessToken | boolean = await this.jwtService.decodeAccessToken(args[0].headers.authorization)
+    const user: AccessToken | boolean = await this.jwtService.decodeAccessToken(args[0].headers.authorization || args[0].url.split('token=')[1])
     if (!user) return client.close()
     const time = user.exp * 1000 - Date.now() - 60000
     client.id = new UniqueID(config.snowflake).getUniqueID().toString()
@@ -106,7 +106,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
       user.id
     )
 
-    const event = 'auth.successed'
+    const event = 'auth.succeed'
     const data = {
       id: client.id,
       uid: client.uid,
