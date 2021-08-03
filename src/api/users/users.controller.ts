@@ -16,7 +16,7 @@ export class UsersController {
   @Get(':id')
   async get(@Param('id') id, @DUser() user: AccessToken): Promise<User> {
     let me: boolean = false
-    if (id === '@me') {
+    if (id === '@me' || id === user.id) {
       id = user.id
       me = true
     }

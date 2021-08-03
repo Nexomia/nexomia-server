@@ -185,9 +185,10 @@ export class GuildsService {
     }
     ]))[0]
 
-    for (let member in guild.members)
+    for (let member in guild.members) {
       guild.members[member].user = guild.users[member]
-
+      guild.members[member].user.connected = !!(await this.onlineManager.get(guild.members[member].id) && guild.users[member].presence !== 4)
+    }
     return guild.members
   }
 
@@ -205,6 +206,7 @@ export class GuildsService {
    extendedMember.deaf = member.deaf
    extendedMember.user = user
    extendedMember.roles = roles
+   extendedMember.user.connected = !!(await this.onlineManager.get(user.id) && user.presence !== 4)
    return extendedMember
   }
 
@@ -304,4 +306,5 @@ export class ExtendedGuild extends Guild {
 export class ExtendedMember extends GuildMember {
   user: User
   roles: string[]
+  сonnected: boolean
 }

@@ -28,9 +28,10 @@ export class UsersService {
     const user: User = await this.userModel.findOne(
       { id: userId }
     )
-    .select('-_id id username discriminator avatar banner verified premium_type public_flags email')
+    .select('-_id id username discriminator avatar banner presence description status verified premium_type public_flags email')
     .lean()
     if (!user) throw new NotFoundException()
+    user.connected = !!(await this.onlineManager.get(user.id) && user.presence !== 4)
     if (me) return user
     else {
       const { email, verified, ...cleanedUser } = user
@@ -44,10 +45,11 @@ export class UsersService {
       { id: userId },
       { modifyData }
     )
-    .select('-_id id username discriminator avatar banner verified premium_type public_flags email')
+    .select('-_id id username discriminator avatar banner presence description status verified premium_type public_flags email')
     .lean()
     if (!modifiedUser) throw new NotFoundException()
 
+    modifiedUser.connected = !!(await this.onlineManager.get(modifiedUser.id) && modifiedUser.presence !== 4)
     const data = {
       event: 'user.patched',
       data: modifiedUser

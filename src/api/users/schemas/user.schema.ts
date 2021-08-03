@@ -2,8 +2,12 @@ import { Fingerprint } from './../../../interfaces/fingerprint.interface';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+class Connected {
+  connected: boolean
+}
+
 @Schema({ versionKey: false })
-export class User {
+export class User extends Connected {
   /**
    * The user's id
    */  
