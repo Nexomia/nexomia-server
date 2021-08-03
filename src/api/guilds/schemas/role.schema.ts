@@ -64,5 +64,6 @@ export enum ComputedPermissions {
   CHANGE_SELF_NICKNAME = 1 << 16,
   ADD_REACTIONS = 1 << 17,
   ADD_EXTERNAL_REACTIONS = 1 << 18,
-  BULK_DELETE = 1 << 19
+  BULK_DELETE = 1 << 19,
+  MANAGE_CHANNELS = 1 << 20
 }
