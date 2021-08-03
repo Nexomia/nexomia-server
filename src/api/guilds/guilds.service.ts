@@ -43,7 +43,11 @@ export class GuildsService {
       id: userId,
       joined_at: Date.now(),
       mute: false,
-      deaf: false
+      deaf: false,
+      permissions: {
+        allow: 0,
+        deny: 0
+      }
     }
     guild.members.push(member)
 
