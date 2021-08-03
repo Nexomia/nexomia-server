@@ -270,7 +270,7 @@ export class GuildsService {
     return cleanedRole
   }
   async isMember(guildId: string, userId: string) {
-    return await this.guildModel.exists({ id: guildId })
+    return await this.guildModel.exists({ id: guildId, 'members.id': userId })
   }
 }
 
