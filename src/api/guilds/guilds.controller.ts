@@ -47,6 +47,12 @@ export class GuildsController {
     return this.guildsService.getMembers(guildId, user.id)
   }
 
+  @Get(':guildId/members/:memberId')
+  async getMember(@Param() params, @DUser() user: AccessToken): Promise<ExtendedMember> {
+    if (!this.guildsService.isMember(params.guildId, user.id)) throw new ForbiddenException()
+    return this.guildsService.getMember(params.guildId, params.memberId)
+  }
+
   @Get(':guildId/roles')
   async getRoles(@Param('guildId') guildId: string, @DUser() user: AccessToken) {
     if (!this.guildsService.isMember(guildId, user.id)) throw new ForbiddenException()

@@ -1,3 +1,4 @@
+import { UserDocument } from './../users/schemas/user.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PatchGuildDto } from './dto/patch-guild.dto';
 import { RoleDto } from './dto/role.dto';
@@ -18,6 +19,7 @@ import { Cache } from 'cache-manager';
 export class GuildsService {
   constructor(
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
@@ -191,6 +193,23 @@ export class GuildsService {
     return guild.members
   }
 
+  async getMember(guildId, userId): Promise<ExtendedMember> {
+    let member =  (await this.guildModel.findOne({ id: guildId, 'members.id': userId }, 'members.$')).members[0]
+    const user = (await this.userModel.findOne({ id: userId }).select('-_id id username discriminator avatar banner description status presence premium_type public_flags')).toObject()
+    let roles: string[] = []
+    const rolesArray = (await this.roleModel.find({ guild_id: guildId, members: { $in: userId } }, 'id')).forEach(role => roles.push(role.id))
+   const extendedMember = new ExtendedMember()
+   extendedMember.id = member.id
+   extendedMember.joined_at = member.joined_at
+   extendedMember.nickname = member.nickname
+   extendedMember.permissions = member.permissions
+   extendedMember.mute = member.mute
+   extendedMember.deaf = member.deaf
+   extendedMember.user = user
+   extendedMember.roles = roles
+   return extendedMember
+  }
+
   async getRoles(guildId: string): Promise<Role[]> {
     return this.roleModel.find({ guild_id: guildId }).select('-_id').lean()
   }
@@ -281,8 +300,10 @@ export class GuildsService {
 export class ExtendedGuild extends Guild {
   users: User[]
   members: ExtendedMember[]
+  roles: Array<string[]>
 }
 
 export class ExtendedMember extends GuildMember {
   user: User
+  roles: string[]
 }
