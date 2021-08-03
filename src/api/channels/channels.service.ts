@@ -136,10 +136,7 @@ export class ChannelsService {
         msg.resentsCompiled.map((resent, i) => {
           resent.resents = resent.resentsIds
           if (resent.changed.length != msg.resentsRevs[i]) {
-            resent.content = resent.changed[msg.resentsRevs[i]].text
-            resent.attachments = resent.changed[msg.resentsRevs[i]].attachments
-            resent.resents = resent.changed[msg.resentsRevs[i]].resentsIds
-            resent.mentions = resent.changed[msg.resentsRevs[i]].mentions
+            resent = resent.changed[msg.resentsRevs[i]]
           }
           delete resent.changed
           delete resent.resentsIds
@@ -425,7 +422,32 @@ export class ChannelsService {
 
   async followChannel(channelId, followDto) {}
 
-  async typing(channelId) {}
+  async typing(channelId, userId) {
+    const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+      if (!channel.recipients.includes(userId)) throw new ForbiddenException()
+    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+    if (!(perms & (
+      ComputedPermissions.OWNER |
+      ComputedPermissions.ADMINISTRATOR |
+      ComputedPermissions.WRITE_MESSAGES
+    ))) throw new ForbiddenException()
+
+    const data = {
+      event: 'channel.typing',
+      data: {
+        user_id: userId,
+        channel_id: channelId,
+      }
+    }
+    this.eventEmitter.emit(
+      'channel.typing',
+      data, 
+      channel?.guild_id
+    )
+    return
+  }
 
   async pinMessage(channelId, messageId, userId): Promise<void> {
     const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()

@@ -19,18 +19,18 @@ export class ChannelsController {
   constructor(private channelsService: ChannelsService) {}
 
   @Get(':channelId')
-  async get(@Param('channelId') cid): Promise<Channel> {
-    return await this.channelsService.getChannel(cid)
+  async get(@Param('channelId') channelId): Promise<Channel> {
+    return await this.channelsService.getChannel(channelId)
   }
 
   @Delete(':channelId')
-  async delete(@Param('channelId') cid) {
-    return await this.channelsService.deleteChannel(cid)
+  async delete(@Param('channelId') channelId) {
+    return await this.channelsService.deleteChannel(channelId)
   }
 
   @Get(':channelId/messages')
-  async messages(@Param('channelId') cid, getChannelMessagesDto: GetChannelMessagesDto, @DUser() user: AccessToken): Promise<Message[]> {
-    return await this.channelsService.getChannelMessages(cid, getChannelMessagesDto, user.id)
+  async messages(@Param('channelId') channelId, getChannelMessagesDto: GetChannelMessagesDto, @DUser() user: AccessToken): Promise<Message[]> {
+    return await this.channelsService.getChannelMessages(channelId, getChannelMessagesDto, user.id)
   }
 
   @Get(':channelId/messages/:messageId')
@@ -39,8 +39,8 @@ export class ChannelsController {
   }
 
   @Post(':channelId/messages')
-  async createMessage(@Param('channelId') cid, @Body() createMessageDto: CreateMessageDto, @DUser() user: AccessToken): Promise<Message> {
-    return await this.channelsService.createMessage(user.id, cid, createMessageDto)
+  async createMessage(@Param('channelId') channelId, @Body() createMessageDto: CreateMessageDto, @DUser() user: AccessToken): Promise<Message> {
+    return await this.channelsService.createMessage(user.id, channelId, createMessageDto)
   }
 
   @Post(':channelId/messages/:messageId/crosspost')
@@ -96,23 +96,23 @@ export class ChannelsController {
   }
 
   @Get(':channelId/invites')
-  async getInvites(@Param('channelId') cid): Promise<Invite[]> {
-    return await this.channelsService.getInvites(cid)
+  async getInvites(@Param('channelId') channelId): Promise<Invite[]> {
+    return await this.channelsService.getInvites(channelId)
   }
 
   @Post(':channelId/invites')
-  async creaateInvite(@Param('channelId') cid, @Body() createInviteDto: CreateInviteDto, @DUser() user: AccessToken): Promise<Invite> {
-    return await this.channelsService.creaateInvite(cid, createInviteDto, user.id)
+  async creaateInvite(@Param('channelId') channelId, @Body() createInviteDto: CreateInviteDto, @DUser() user: AccessToken): Promise<Invite> {
+    return await this.channelsService.creaateInvite(channelId, createInviteDto, user.id)
   }
 
   @Post(':channelId/followers')
-  async followChannel(@Param('channelId') cid, @Body() followChannelDto: FollowChannelDto) {
-    return await this.channelsService.followChannel(cid, followChannelDto)
+  async followChannel(@Param('channelId') channelId, @Body() followChannelDto: FollowChannelDto) {
+    return await this.channelsService.followChannel(channelId, followChannelDto)
   }
 
   @Post(':channelId/typing')
-  async typing(@Param('channelId') cid) {
-    return await this.channelsService.typing(cid)
+  async typing(@Param('channelId') channelId, @DUser() user: AccessToken) {
+    return await this.channelsService.typing(channelId, user.id)
   }
 
   @Put(':channelId/pins/:messageId')
