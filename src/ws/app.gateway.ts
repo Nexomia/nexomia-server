@@ -215,7 +215,9 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
   async message(data, guildId) {
     let recipients: string[] = []
     if (guildId) {
-      recipients = JSON.parse(await this.onlineManager.get(guildId))
+        let membersStr: string = await this.onlineManager.get(guildId)
+        if (membersStr) 
+          recipients = JSON.parse(membersStr)
       for(const recipient of recipients) {
         const perms = await this.parser.computePermissions(guildId, recipient, data.data.channel_id)
         if (!(perms & (
@@ -227,7 +229,9 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
       }
       recipients = recipients.filter((v, i, r) => r.indexOf(v) === i)
     } else {
-      recipients = JSON.parse(await this.onlineManager.get(data.data.channel_id))
+      let membersStr: string = await this.onlineManager.get(data.data.channel_id)
+      if (membersStr) 
+        recipients = JSON.parse(membersStr)
     }
     this.server.clients.forEach(async (client: any) => {
       if(!recipients.includes(client.uid)) return
@@ -240,12 +244,18 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     const cachedUser: CachedUser = JSON.parse(await this.onlineManager.get(userId))
     let recipients: string[] = []
     if (cachedUser.guilds.length) {
-      for (const guild of cachedUser.guilds)
-        recipients = recipients.concat(JSON.parse(await this.onlineManager.get(guild)))
+      for (const guild of cachedUser.guilds) {
+        let membersStr: string = await this.onlineManager.get(guild)
+        if (membersStr) 
+          recipients = recipients.concat(JSON.parse(membersStr))
+      }
     }
     if (cachedUser.channels.length) {
-      for (const channel of cachedUser.channels)
-        recipients = recipients.concat(JSON.parse(await this.onlineManager.get(channel)))
+      for (const channel of cachedUser.channels){
+        let membersStr: string = await this.onlineManager.get(channel)
+        if (membersStr) 
+          recipients = recipients.concat(JSON.parse(membersStr))
+      }
     }
     recipients = recipients.filter((v, i, r) => r.indexOf(v) === i)
 
@@ -257,7 +267,10 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   @OnEvent('guild.*')
   async guild(data, guildId: string) {
-    const recipients = JSON.parse(await this.onlineManager.get(guildId))
+    let recipients: string[]
+    let membersStr: string = await this.onlineManager.get(guildId)
+    if (membersStr) 
+      recipients = JSON.parse(membersStr)
     this.server.clients.forEach(async (client: any) => {
       if(!recipients.includes(client.uid)) return
       return client.send(JSON.stringify(data))
@@ -270,12 +283,17 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
     let recipients: string[] = []
     if (cachedUser.guilds.length) {
       for (const guild of cachedUser.guilds) {
-        recipients = recipients.concat(JSON.parse(await this.onlineManager.get(guild)))
+        let membersStr: string = await this.onlineManager.get(guild)
+        if (membersStr) 
+          recipients = recipients.concat(JSON.parse(membersStr))
       }
     }
     if (cachedUser.channels.length) {
-      for (const channel of cachedUser.channels)
-        recipients = recipients.concat(JSON.parse(await this.onlineManager.get(channel)))
+      for (const channel of cachedUser.channels) {
+        let membersStr: string = await this.onlineManager.get(channel)
+        if (membersStr) 
+          recipients = recipients.concat(JSON.parse(membersStr))
+      }
     }
 
     recipients = recipients.filter((v, i, r) => r.indexOf(v) === i)
