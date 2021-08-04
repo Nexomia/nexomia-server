@@ -15,13 +15,13 @@ import { Parser } from 'src/utils/parser/parser.utils';
       ttl: 60 * 60 * 24 * 365,
     }),
     MongooseModule.forFeature([
-      { name: Emoji.name, schema: EmojiSchema },
       { name: Guild.name, schema: GuildSchema },
       { name: Channel.name, schema: ChannelSchema },
       { name: User.name, schema: UserSchema },
       { name: Role.name, schema: RoleSchema }
     ]),
   ],
+  exports: [GuildsService, MongooseModule],
   providers: [GuildsService, Parser],
   controllers: [GuildsController]
 })

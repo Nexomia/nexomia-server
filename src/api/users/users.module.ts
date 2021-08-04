@@ -19,6 +19,7 @@ import { Channel, ChannelSchema } from '../channels/schemas/channel.schema';
       { name: Role.name, schema: RoleSchema }
     ]),
   ],
+  exports: [UsersService, MongooseModule],
   providers: [UsersService],
   controllers: [UsersController],
 })
