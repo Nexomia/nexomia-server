@@ -1,3 +1,5 @@
+import { ChannelsService } from './../channels/channels.service';
+import { MessageType } from './../channels/schemas/message.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Role, RoleDocument } from './../guilds/schemas/role.schema';
 import { ChannelType } from './../channels/schemas/channel.schema';
@@ -22,6 +24,7 @@ export class UsersService {
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
+    private channelsService: ChannelsService
   ) {}
 
   async getUser(userId, me): Promise<User> {
@@ -68,11 +71,16 @@ export class UsersService {
   }
 
   async leaveGuild(userId, guildId): Promise<void> {
+    const guildChannel = await (await this.guildModel.findOne({ id: guildId }, 'default_channel')).toObject()
+    if (guildChannel.default_channel !== '')
+      await this.channelsService.createMessage(userId, guildChannel.default_channel, {}, { type: MessageType.LEAVE })
+
     const guild = await this.guildModel.updateOne(
       { id: guildId, owner_id: { $ne: userId }, 'members.id': userId },
       { $pull: { members: { id: userId } } }
     )
     if (!guild) throw new NotFoundException()
+
     await this.roleModel.updateMany(
       { guild_id: guildId, members: userId },
       { $pull: { members: userId } }

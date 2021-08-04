@@ -1,3 +1,5 @@
+import { MessageType } from './../channels/schemas/message.schema';
+import { ChannelsService } from './../channels/channels.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Role, RoleDocument } from './../guilds/schemas/role.schema';
 import { Invite, InviteDocument } from './schemas/invite.schema';
@@ -28,6 +30,7 @@ export class InvitesService {
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
+    private channelService: ChannelsService,
     private eventEmitter: EventEmitter2,
   ) {}
 
@@ -98,6 +101,9 @@ export class InvitesService {
       { $push: { members: userId } }
     )
     delete updatedGuild.members
+
+    if (guild.default_channel !== '')
+      this.channelService.createMessage(userId, guild.default_channel, {}, { type: MessageType.JOIN })
 
     const data = {
       event: 'guild.joined',
