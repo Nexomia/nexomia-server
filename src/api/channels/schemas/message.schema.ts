@@ -416,3 +416,12 @@ class Reaction {
   emoji_id: string;
   users: string[];
 }
+
+export enum MessageType {
+  TEXT = 0,
+  VOICE = 1,
+  STICKER = 2,
+  PIN = 3,
+  JOIN = 4,
+  LEAVE = 5,
+}

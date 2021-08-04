@@ -62,7 +62,9 @@ export class InvitesService {
     const guild: GuildShort = {
       id: inviteData.guild[0].id,
       name: inviteData.guild[0].name,
-      members_count: inviteData.guild[0].members.length
+      members_count: inviteData.guild[0].members.length,
+      online_members_count: JSON.parse((await this.onlineManager.get(inviteData.guild[0].id)) || '[]').length,
+      icon: inviteData.guild[0].icon
     }
     const channel: ChannelShort = {
       id: inviteData.channel[0].id,

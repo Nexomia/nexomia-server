@@ -172,6 +172,7 @@ export class GuildShort {
   id: string;
   name: string;
   members_count: number;
+  online_members_count: number;
   icon?: string;
 }
 
