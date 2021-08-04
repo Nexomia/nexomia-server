@@ -157,9 +157,11 @@ export class GuildsService {
       {
         $match: {
           id: guildId,
-          'members.id': userId
         }
       },
+      { $unwind: '$members' },
+      { $sort: { 'members.id': 1 } },
+      { $group: { _id: '$id', members: { $push: '$members' } } },
       {
         $lookup: {
           from: 'users',
@@ -184,7 +186,7 @@ export class GuildsService {
       }
     }
     ]))[0]
-
+    
     for (let member in guild.members) {
       guild.members[member].user = guild.users[member]
       guild.members[member].user.connected = !!(await this.onlineManager.get(guild.members[member].id) && guild.users[member].presence !== 4)
