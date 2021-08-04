@@ -9,7 +9,7 @@ import { CreateInviteDto } from './dto/create-invite.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { Channel, ChannelDocument, ChannelType } from './schemas/channel.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { Message, MessageDocument } from './schemas/message.schema';
+import { Message, MessageDocument, MessageType } from './schemas/message.schema';
 import { BadRequestException, Injectable, NotFoundException, InternalServerErrorException, ForbiddenException, Inject, CACHE_MANAGER } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { UniqueID } from 'nodejs-snowflake';
@@ -155,7 +155,7 @@ export class ChannelsService {
     return ready[0]
   }
 
-  async createMessage(userId: string, channelId: string, messageDto: CreateMessageDto): Promise<any> /* will fix later */ {
+  async createMessage(userId: string, channelId: string, messageDto: CreateMessageDto, systemData?: any): Promise<any> /* will fix later */ {
     
     const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
@@ -166,7 +166,9 @@ export class ChannelsService {
       ComputedPermissions.OWNER |
       ComputedPermissions.ADMINISTRATOR |
       ComputedPermissions.WRITE_MESSAGES
-    ))) throw new ForbiddenException()
+    ))
+    || !systemData?.type
+    ) throw new ForbiddenException()
 
     const sf = new UniqueID(config.snowflake)
     const message = new this.messageModel()
@@ -178,10 +180,13 @@ export class ChannelsService {
       messageDto.content 
       || 
       (messageDto.resents || messageDto.sticker || messageDto.attachments)
+      || systemData?.type
     )
       message.content = messageDto.content
     else throw new BadRequestException()
 
+    if (systemData.type)
+      message.type = systemData.type  
     if (messageDto.sticker && perms &
       ComputedPermissions.ATTACH_STICKERS
     ) message.sticker
@@ -461,7 +466,7 @@ export class ChannelsService {
       ComputedPermissions.ADMINISTRATOR |
       ComputedPermissions.MANAGE_MESSAGES
     ))) throw new ForbiddenException()
-    const msgChannelId = await this.messageModel.findOne({ id: messageId, channel_id: channelId }).lean('id')
+    const msgChannelId = await this.messageModel.exists({ id: messageId, channel_id: channelId })
     if (!msgChannelId) throw new BadRequestException()
     await this.channelModel.updateOne(
       { id: channelId },
@@ -480,7 +485,7 @@ export class ChannelsService {
       data, 
       channel?.guild_id
     )
-    
+    this.createMessage(userId, channelId, {}, { type: MessageType.PIN })
     return
   }
 
