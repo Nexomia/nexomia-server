@@ -1,27 +1,21 @@
+import { IsNumberString, IsOptional } from 'class-validator';
 import { AllowedMentions, Attachment, Embed, MessageReference } from './../schemas/message.schema';
 export class EditMessageDto {
-  /**
-   * The message contents (up to 2000 characters)
-   */
+
+  @IsOptional()
+  @IsNumberString()
   content?: string;
 
-  /**
-   * The message contents (up to 2000 characters)
-   */
+  @IsOptional()
   embed?: Embed;
 
-  /**
-   * The message contents (up to 2000 characters)
-   */
+  @IsOptional()
+  @IsNumberString()
   flags?: number;
 
-  /**
-   * The message contents (up to 2000 characters)
-   */
+  @IsOptional()
   allowed_mentions?: AllowedMentions;
 
-  /**
-   * The message contents (up to 2000 characters)
-   */
+  @IsOptional()
   attachments?: Attachment[];
 }

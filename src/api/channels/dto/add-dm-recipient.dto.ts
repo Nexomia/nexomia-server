@@ -1,11 +1,18 @@
+import { IsNumberString, IsOptional, IsString, Length } from "class-validator";
+
 export class AddDMRecipientDto {
+
+  @IsNumberString()
   /**
-   * Access token of a user that has granted your app the gdm.join scope
-  */
-  access_token: string;
+   * User id
+   */
+  id: string;
 
   /**
    * Nickname of the user being added
   */
-  nick: string;
+  @IsOptional()
+  @IsString()
+  @Length(1, 20)
+  nick?: string;
 }
