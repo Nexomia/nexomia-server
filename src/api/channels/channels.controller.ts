@@ -11,7 +11,7 @@ import { BulkDeleteDto } from './dto/bulk-delete.dto';
 import { EditMessageDto } from './dto/edit-message.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { ChannelsService } from './channels.service';
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { DUser } from 'src/decorators/user.decorator';
 
 @Controller('channels')
@@ -29,7 +29,7 @@ export class ChannelsController {
   }
 
   @Get(':channelId/messages')
-  async messages(@Param('channelId') channelId, getChannelMessagesDto: GetChannelMessagesDto, @DUser() user: AccessToken): Promise<Message[]> {
+  async messages(@Param('channelId') channelId, @Query() getChannelMessagesDto: GetChannelMessagesDto, @DUser() user: AccessToken): Promise<Message[]> {
     return await this.channelsService.getChannelMessages(channelId, getChannelMessagesDto, user.id)
   }
 

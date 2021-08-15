@@ -53,13 +53,13 @@ export class ChannelsService {
     { 
       $match: {
         channel_id: channelId,
-        created: { $gt: filters?.after || 0 },
+        created: { $gt: parseInt(filters?.after) || 0, $lt: parseInt(filters?.before) || Date.now() },
         deleted: false 
       }
     },
-    { $skip: filters?.offset || 0 },
     { $sort: { created: -1 } },
-    { $limit: filters?.count || 50 },
+    { $skip: parseInt(filters?.offset) || 0 },
+    { $limit: parseInt(filters?.count) || 50 },
     { 
       $graphLookup: {
         from: 'messages',
@@ -167,7 +167,7 @@ export class ChannelsService {
       ComputedPermissions.ADMINISTRATOR |
       ComputedPermissions.WRITE_MESSAGES
     ))
-    || !systemData?.type
+    && !systemData?.type
     ) throw new ForbiddenException()
 
     const sf = new UniqueID(config.snowflake)
@@ -185,7 +185,7 @@ export class ChannelsService {
       message.content = messageDto.content
     else throw new BadRequestException()
 
-    if (systemData.type)
+    if (systemData?.type)
       message.type = systemData.type  
     if (messageDto.sticker && perms &
       ComputedPermissions.ATTACH_STICKERS
