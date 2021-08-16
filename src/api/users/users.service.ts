@@ -67,7 +67,7 @@ export class UsersService {
   }
 
   async getGuilds(userId, sortData): Promise<Guild[]> {
-    return await this.guildModel.find({ 'members.id': userId }).select('-_id id name icon').lean()
+    return await this.guildModel.find({ 'members.id': userId }).select('-_id id name icon owner_id').lean()
   }
 
   async leaveGuild(userId, guildId): Promise<void> {
