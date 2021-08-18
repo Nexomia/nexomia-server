@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { User } from 'src/api/users/schemas/user.schema';
 
 @Schema({ versionKey: false })
 export class Channel {

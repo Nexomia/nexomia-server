@@ -306,7 +306,7 @@ export class ChannelsService {
   async editMessage(channelId, messageId, message) {}
 
   async deleteMessage(channelId, messageId, userId): Promise<void> {
-    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+    const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
@@ -351,7 +351,7 @@ export class ChannelsService {
   }
 
   async deleteMessages(channelId: string, messageIds: string[], userId: string) {
-    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+    const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
