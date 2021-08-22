@@ -38,7 +38,14 @@ export class GuildsController {
   @Post(':guildId/channels')
   async createChannel(@Body() createChannelDto: CreateChannelDto, @Param('guildId') guildId, @DUser() user: AccessToken): Promise<Channel> {
     if (!this.guildsService.isMember(guildId, user.id)) throw new ForbiddenException()
-    return this.guildsService.createChannel(guildId, createChannelDto)
+    const perms = await this.parser.computePermissions(guildId, user.id)
+    if (perms & (
+      ComputedPermissions.OWNER |
+      ComputedPermissions.ADMINISTRATOR |
+      ComputedPermissions.MANAGE_CHANNELS
+      )
+    ) return this.guildsService.createChannel(guildId, createChannelDto)
+    else throw new ForbiddenException()
   }
 
   @Get(':guildId/members')
