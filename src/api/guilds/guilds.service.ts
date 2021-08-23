@@ -1,3 +1,5 @@
+import { RoleResponse, RoleResponseValidate } from './responses/role.response';
+import { GuildResponse, GuildResponseValidate } from './responses/guild.response';
 import { ChannelResponse, ChannelResponseValidate } from './../channels/responses/channel.response';
 import { UserDocument } from './../users/schemas/user.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -34,7 +36,7 @@ export class GuildsService {
     return guild
   }
 
-  async create(guildDto: CreateGuildDto, userId: string): Promise<Guild> {
+  async create(guildDto: CreateGuildDto, userId: string): Promise<GuildResponse> {
     if (!guildDto.name) throw new BadRequestException()
     
     const guild = new this.guildModel()
@@ -69,14 +71,13 @@ export class GuildsService {
     await role.save()
 
     await guild.save()
-    const { _id, ...cleanedGuild } = guild.toObject()
 
-    return cleanedGuild
+    return GuildResponseValidate(guild.toObject())
 
     // Тут надо будет дописать доп функционал для создания  сервера с канлами, ролями, кароч что-то ака шаблонов
   }
 
-  async patchGuild(guildId: string, patchGuildDto: PatchGuildDto): Promise<Guild> {
+  async patchGuild(guildId: string, patchGuildDto: PatchGuildDto): Promise<GuildResponse> {
     const guild = await this.guildModel.findOne({ id: guildId })
     if (patchGuildDto.name && patchGuildDto.name !== guild.name)
       guild.name = patchGuildDto.name
@@ -97,7 +98,7 @@ export class GuildsService {
     if (patchGuildDto.preferred_locale && patchGuildDto.preferred_locale !== guild.preferred_locale) //will change later
       guild.preferred_locale = patchGuildDto.preferred_locale
     await guild.save()
-    const { _id, members, owner_id, features, ...cleanedGuild } = guild.toObject() //will change later
+    const cleanedGuild: GuildResponse = GuildResponseValidate(guild.toObject())
 
     const data = {
       event: 'guild.patched',
@@ -213,21 +214,21 @@ export class GuildsService {
    return extendedMember
   }
 
-  async getRoles(guildId: string): Promise<Role[]> {
-    return this.roleModel.find({ guild_id: guildId }).select('-_id').lean()
+  async getRoles(guildId: string): Promise<RoleResponse[]> {
+    return (await this.roleModel.find({ guild_id: guildId }).select('-_id').lean()).map(role => { return RoleResponseValidate(role) })
   }
 
-  async getRole(guildId: string, roleId: string, userId): Promise<Role> {
-    return this.roleModel.findOne({ id: roleId, guild_id: guildId }).select('-_id').lean()
+  async getRole(guildId: string, roleId: string, userId): Promise<RoleResponse> {
+    const role = (await this.roleModel.findOne({ id: roleId, guild_id: guildId }).select('-_id')).toObject()
+    return RoleResponseValidate(role)
   }
 
-  async createRole(guildId: string, createRoleDto: RoleDto): Promise<Role> {
+  async createRole(guildId: string, createRoleDto: RoleDto): Promise<RoleResponse> {
     const count = await this.roleModel.countDocuments({ guild_id: guildId })
-    console.log(count)
     const role = new this.roleModel()
     role.id = new UniqueID(config.snowflake).getUniqueID()
     role.guild_id = guildId
-    role.position = createRoleDto?.position | count
+    role.position = createRoleDto?.position || count
     role.permissions = {
       allow: 0,
       deny: 0
@@ -241,7 +242,7 @@ export class GuildsService {
       role.permissions.deny = createRoleDto.permissions.deny
     }
     await role.save()
-    const { _id, ...cleanedRole } = role.toObject()
+    const cleanedRole = RoleResponseValidate(role.toObject())
 
     const data = {
       event: 'guild.role_created',
@@ -256,7 +257,7 @@ export class GuildsService {
     return cleanedRole
   }
 
-  async patchRole(guildId: string, roleId: string, patchRoleDto: RoleDto) {
+  async patchRole(guildId: string, roleId: string, patchRoleDto: RoleDto): Promise<RoleResponse> {
     const role = await this.roleModel.findOne({ id: roleId, guild_id: guildId })
     if (patchRoleDto.name) role.name = patchRoleDto.name
     if (patchRoleDto.color) role.color = patchRoleDto.color
@@ -281,7 +282,7 @@ export class GuildsService {
     }
     role.markModified('permissions')
     await role.save()
-    const { _id, members, ...cleanedRole } = role.toObject()
+    const cleanedRole = RoleResponseValidate(role.toObject())
 
     const data = {
       event: 'guild.role_patched',

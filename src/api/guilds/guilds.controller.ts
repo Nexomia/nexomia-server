@@ -1,3 +1,4 @@
+import { GuildResponse } from './responses/guild.response';
 import { ChannelResponse } from './../channels/responses/channel.response';
 import { PatchGuildDto } from './dto/patch-guild.dto';
 import { ComputedPermissions } from './schemas/role.schema';
@@ -26,7 +27,7 @@ export class GuildsController {
   }
 
   @Post()
-  async create(@Body() createGuildDto: CreateGuildDto, @DUser() user: AccessToken): Promise<Guild> {
+  async create(@Body() createGuildDto: CreateGuildDto, @DUser() user: AccessToken): Promise<GuildResponse> {
     return this.guildsService.create(createGuildDto, user.id)
   }
 
