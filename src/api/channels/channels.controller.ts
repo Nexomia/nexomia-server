@@ -126,6 +126,11 @@ export class ChannelsController {
     return await this.channelsService.deletePinnedMessage(params.channelId, params.messageId, user.id)
   }
 
+  @Get(':channelId/pins')
+  async getPinnedMessages(@Param('channelId') channelId, @DUser() user: AccessToken): Promise<MessageResponse[]> {
+    return await this.channelsService.getPinnedMessages(channelId, user.id)
+  }
+
   @Put(':channelId/recipients/:userId')
   async addRecipient(@Param() params, AddDMRecipientDto: AddDMRecipientDto) {
     return await this.channelsService.addRecipient(params.channelId, params.userId)

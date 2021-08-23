@@ -1,3 +1,4 @@
+import { GetChannelMessagesDto } from './dto/get-channel-messages.dto';
 import { MessageResponse, MessageResponseValidate } from './responses/message.response';
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema';
 import { ComputedPermissions } from './../guilds/schemas/role.schema';
@@ -37,8 +38,8 @@ export class ChannelsService {
 
   async deleteChannel(channelId) {}
 
-  async getChannelMessages(channelId, filters, userId): Promise<MessageResponse[]> {
-    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+  async getChannelMessages(channelId, filters: GetChannelMessagesDto, userId): Promise<MessageResponse[]> {
+    const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
@@ -51,7 +52,14 @@ export class ChannelsService {
 
     const data = await this.messageModel.aggregate([
     { 
-      $match: {
+      $match: filters.ids 
+      ? {
+         id: { $in: filters.ids },
+         channel_id: channelId,
+         deleted: false 
+        }
+
+      : {
         channel_id: channelId,
         created: { $gt: parseInt(filters?.after) || 0, $lt: parseInt(filters?.before) || Date.now() },
         deleted: false 
@@ -505,8 +513,9 @@ export class ChannelsService {
     return
   }
 
-  async getPinnedMessages(channelId) {
-
+  async getPinnedMessages(channelId, userId) {
+    const messages = await (await this.channelModel.findOne({ id: channelId }, 'pinned_messages_ids')).toObject().pinned_messages_ids
+    return await this.getChannelMessages(channelId, { ids: messages, count: messages.length.toString() }, userId)
   }
 
   async addRecipient(channelId, userId) {}
