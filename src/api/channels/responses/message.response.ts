@@ -6,7 +6,7 @@ const MessageResponseSchema = myzod.object({
   guild_id: myzod.string().optional(),
   channel_id: myzod.string(),
   author: myzod.string(),
-  content: myzod.string(),
+  content: myzod.string().optional(),
   type: myzod.number(),
   created: myzod.number(),
   edited: myzod.boolean(),
