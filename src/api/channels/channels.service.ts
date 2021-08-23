@@ -1,4 +1,4 @@
-
+import { MessageResponse, MessageResponseValidate } from './responses/message.response';
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema';
 import { ComputedPermissions } from './../guilds/schemas/role.schema';
 import { Parser } from 'src/utils/parser/parser.utils';
@@ -10,10 +10,10 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { Channel, ChannelDocument, ChannelType } from './schemas/channel.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Message, MessageDocument, MessageType } from './schemas/message.schema';
-import { BadRequestException, Injectable, NotFoundException, InternalServerErrorException, ForbiddenException, Inject, CACHE_MANAGER } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException, Inject, CACHE_MANAGER } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { UniqueID } from 'nodejs-snowflake';
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cache } from 'cache-manager';
 
 @Injectable()
@@ -37,7 +37,7 @@ export class ChannelsService {
 
   async deleteChannel(channelId) {}
 
-  async getChannelMessages(channelId, filters, userId): Promise<Message[]> {
+  async getChannelMessages(channelId, filters, userId): Promise<MessageResponse[]> {
     const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
@@ -63,43 +63,22 @@ export class ChannelsService {
     { 
       $graphLookup: {
         from: 'messages',
-        startWith: '$resentsIds',
-        connectFromField: 'resentsIds',
+        startWith: '$forwarded_ids',
+        connectFromField: 'forwarded_ids',
         connectToField: 'id',
-        as: 'resentsCompiled',
+        as: 'forwarded_compiled',
         maxDepth: 0,
       },
     },
     { $unset: ['_id', 'deleted', '__v'] }
   ])
   const ready = data.map(msg => {
-    if (msg.resentsCompiled.length) {
-      msg.resentsCompiled.map((resent, i) => {
-        resent.resents = resent.resentsIds
-        if (resent.changed.length != msg.resentsRevs[i]) {
-          resent.content = resent.changed[msg.resentsRevs[i]].text
-          resent.attachments = resent.changed[msg.resentsRevs[i]].attachments
-          resent.resents = resent.changed[msg.resentsRevs[i]].resentsIds
-          resent.mentions = resent.changed[msg.resentsRevs[i]].mentions
-        }
-        delete resent.changed
-        delete resent.resentsIds
-        delete resent.resentsRevs
-        delete resent['_id']
-        return resent
-      })
-      msg.resentsCompiled.sort((a, b) => (a.created > b.created) ? 1 : -1)
-    }
-    msg.resents = msg.resentsIds
-    delete msg.changed
-    delete msg.resentsIds
-    delete msg.resentsRevs
-    return msg
+    return this.messageParser(msg)
   }).sort((a, b) => (a.created > b.created) ? 1 : -1)
   return ready
   }
 
-  async getChannelMessage(channelId, messageId, userId): Promise<Message> {
+  async getChannelMessage(channelId, messageId, userId): Promise<MessageResponse> {
     const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
@@ -112,7 +91,7 @@ export class ChannelsService {
       ComputedPermissions.READ_MESSAGES
     ))) throw new ForbiddenException()
 
-    const data = await this.messageModel.aggregate([
+    const data = (await this.messageModel.aggregate([
       { 
         $match: {
           id: messageId,
@@ -122,41 +101,20 @@ export class ChannelsService {
       { 
         $graphLookup: {
           from: 'messages',
-          startWith: '$resentsIds',
-          connectFromField: 'resentsIds',
+          startWith: '$forwarded_ids',
+          connectFromField: 'forwarded_ids',
           connectToField: 'id',
-          as: 'resentsCompiled',
+          as: 'forwarded_compiled',
           maxDepth: 0,
         },
       },
       { $unset: ['_id', 'deleted', '__v'] }
-    ])
-    const ready = data.map(msg => {
-      if (msg.resentsCompiled.length) {
-        msg.resentsCompiled.map((resent, i) => {
-          resent.resents = resent.resentsIds
-          if (resent.changed.length != msg.resentsRevs[i]) {
-            resent = resent.changed[msg.resentsRevs[i]]
-          }
-          delete resent.changed
-          delete resent.resentsIds
-          delete resent.resentsRevs
-          delete resent['_id']
-          return resent
-        })
-        msg.resentsCompiled.sort((a, b) => (a.created > b.created) ? 1 : -1)
-      }
-      msg.resents = msg.resentsIds
-      delete msg.changed
-      delete msg.resentsIds
-      delete msg.resentsRevs
-      return msg
-    })
-    return ready[0]
+    ]))[0]
+    const message = this.messageParser(data)
+    return message
   }
-
-  async createMessage(userId: string, channelId: string, messageDto: CreateMessageDto, systemData?: any): Promise<any> /* will fix later */ {
-    
+  async createMessage(userId: string, channelId: string, messageDto: CreateMessageDto, systemData?: any): Promise<MessageResponse> {
+    console.log(messageDto)
     const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
@@ -176,26 +134,50 @@ export class ChannelsService {
     message.created = sf.getTimestampFromID(message.id)
     message.author = userId
     message.channel_id = channelId
-    if (
-      messageDto.content 
-      || 
-      (messageDto.resents || messageDto.sticker || messageDto.attachments)
-      || systemData?.type
-    )
-      message.content = messageDto.content
-    else throw new BadRequestException()
+    message.type = systemData?.type || 0
 
-    if (systemData?.type)
-      message.type = systemData.type  
-    if (messageDto.sticker && perms &
-      ComputedPermissions.ATTACH_STICKERS
-    ) message.sticker
-    // if (messageDto.embed)
-    // if (nmessageDto.resents)
+    if (channel.guild_id)
+      message.guild_id = channel.guild_id
+    
+    if (
+      !(
+        messageDto.content 
+        || 
+        (messageDto.forwarded_messages || messageDto.sticker || messageDto.attachments)
+        || systemData?.type
+      )
+    ) throw new BadRequestException()
+
+    if (!messageDto.sticker)
+      message.content = messageDto?.content
+ 
+    let forwarded_messages: Message[]
+    if (messageDto.forwarded_messages) {
+      forwarded_messages = await this.messageModel.aggregate([
+        { $match: { id: { $in: messageDto.forwarded_messages }, allow_forwarding: true, deleted: false } },
+        { $sort: { id: 1 } }
+      ])
+      if (forwarded_messages) {
+        for (const msg of forwarded_messages) {
+          const perms2 = await this.parser.computePermissions(msg.guild_id, userId, msg.channel_id)
+          if (
+            msg.guild_id !== channel.guild_id &&
+            !(perms2 & 
+              ComputedPermissions.FORWARD_MESSAGES_FROM_SERVER |
+              ComputedPermissions.OWNER |
+              ComputedPermissions.ADMINISTRATOR
+            )
+          ) throw new BadRequestException()
+          message.forwarded_ids.push(msg.id)
+          message.forwarded_revs.push(msg.edit_history?.length || 0)
+        }
+      }
+    }
     // if (messageDto.attachments)
     await message.save()
-    const { _id, deleted, edit_history, resentRevs, resentIds, ...cleanedMessage } = message.toObject()
-
+    const message2 = <AgreggatedMessage>Object.assign(message.toObject(), { forwarded_compiled: forwarded_messages })
+    const cleanedMessage = this.messageParser(message2)
+    console.log(cleanedMessage)
     const data = {
       event: 'message.created',
       data: cleanedMessage
@@ -211,7 +193,7 @@ export class ChannelsService {
   async crosspostMessage(channelId, messageId) {}
 
   async createReaction(channelId: string, messageId: string, emojiId: string, userId: string): Promise<void> {
-    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+    const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
@@ -264,7 +246,7 @@ export class ChannelsService {
   }
 
   async deleteReaction(channelId: string, messageId: string, emojiId: string, userId: string): Promise<void> {
-    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+    const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
@@ -428,7 +410,7 @@ export class ChannelsService {
   async followChannel(channelId, followDto) {}
 
   async typing(channelId, userId) {
-    const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
+    const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
@@ -455,7 +437,7 @@ export class ChannelsService {
   }
 
   async pinMessage(channelId, messageId, userId): Promise<void> {
-    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+    const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
@@ -490,7 +472,7 @@ export class ChannelsService {
   }
 
   async deletePinnedMessage(channelId, messageId, userId): Promise<void> {
-    const channel = await this.channelModel.findOne({ id: channelId }, 'type, recipients, guild_id').lean()
+    const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
     if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
@@ -523,6 +505,10 @@ export class ChannelsService {
     return
   }
 
+  async getPinnedMessages(channelId) {
+
+  }
+
   async addRecipient(channelId, userId) {}
 
   async removeRecipient(channelId, userId) {}
@@ -535,7 +521,23 @@ export class ChannelsService {
     return code
   }
 
+
+
+  private messageParser(message: AgreggatedMessage) {
+    message.forwarded_messages = []
+    if (message.forwarded_ids.length) {
+     for (const i in message.forwarded_compiled) {
+      message.forwarded_messages.push(MessageResponseValidate(message.forwarded_compiled[i].edit_history[message.forwarded_revs[i]] || message.forwarded_compiled[i]))
+     }
+    }
+    return MessageResponseValidate(message)
+  }
+
   async isMember(channelId, userId) {
     return await this.channelModel.exists({ id: channelId, recipients: userId })
   }
+}
+class AgreggatedMessage extends Message {
+  forwarded_compiled: Message[]
+  forwarded_messages: MessageResponse[]
 }

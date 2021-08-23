@@ -39,7 +39,7 @@ export class CreateMessageDto {
    */
   @IsOptional()
   @IsArray()
-  resents?: string[];
+  forwarded_messages?: string[];
 
   /**
    * Sticker id

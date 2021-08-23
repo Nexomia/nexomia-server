@@ -18,6 +18,11 @@ export class Message {
   @Prop()
   type: number;
 
+  /**
+   * Id of the guild if the message was sent in
+   */
+  @Prop()
+  guild_id?: string;
 
   /**
    * Id of the channel the message was sent in
@@ -34,7 +39,7 @@ export class Message {
   /**
    * Contents of the message
    */
-  @Prop()
+  @Prop({ default: '' })
   content?: string;
 
   /**
@@ -71,13 +76,20 @@ export class Message {
    * Ids of resent messages
    */
   @Prop()
-  resentIds?: string[] | null;
+  forwarded_ids?: string[] | null;
 
   /**
    * Revision numbers of resent messages
    */
   @Prop()
-  resentRevs?: string[] | null;
+  forwarded_revs?: number[] | null;
+
+  /**
+   * Allows to prevent forwarding message to other servers
+   * @default True
+   */
+  @Prop({ default: true })
+  allow_forwarding?: boolean;
 
   /**
    * Reactions to the message

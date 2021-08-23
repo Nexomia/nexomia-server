@@ -1,3 +1,4 @@
+import { MessageResponse } from './responses/message.response';
 import { Invite } from './../invites/schemas/invite.schema';
 import { Message } from './schemas/message.schema';
 import { Channel } from './schemas/channel.schema';
@@ -29,17 +30,17 @@ export class ChannelsController {
   }
 
   @Get(':channelId/messages')
-  async messages(@Param('channelId') channelId, @Query() getChannelMessagesDto: GetChannelMessagesDto, @DUser() user: AccessToken): Promise<Message[]> {
+  async messages(@Param('channelId') channelId, @Query() getChannelMessagesDto: GetChannelMessagesDto, @DUser() user: AccessToken): Promise<MessageResponse[]> {
     return await this.channelsService.getChannelMessages(channelId, getChannelMessagesDto, user.id)
   }
 
   @Get(':channelId/messages/:messageId')
-  async message(@Param() params, @DUser() user: AccessToken): Promise<Message> {
+  async message(@Param() params, @DUser() user: AccessToken): Promise<MessageResponse> {
     return await this.channelsService.getChannelMessage(params.channelId, params.messageId, user.id)
   }
 
   @Post(':channelId/messages')
-  async createMessage(@Param('channelId') channelId, @Body() createMessageDto: CreateMessageDto, @DUser() user: AccessToken): Promise<Message> {
+  async createMessage(@Param('channelId') channelId, @Body() createMessageDto: CreateMessageDto, @DUser() user: AccessToken): Promise<MessageResponse> {
     return await this.channelsService.createMessage(user.id, channelId, createMessageDto)
   }
 
