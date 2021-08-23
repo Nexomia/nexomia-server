@@ -1,3 +1,4 @@
+import { ChannelResponse } from './responses/channel.response';
 import { MessageResponse } from './responses/message.response';
 import { Invite } from './../invites/schemas/invite.schema';
 import { Message } from './schemas/message.schema';
@@ -20,7 +21,7 @@ export class ChannelsController {
   constructor(private channelsService: ChannelsService) {}
 
   @Get(':channelId')
-  async get(@Param('channelId') channelId): Promise<Channel> {
+  async get(@Param('channelId') channelId): Promise<ChannelResponse> {
     return await this.channelsService.getChannel(channelId)
   }
 
@@ -76,8 +77,8 @@ export class ChannelsController {
   }
 
   @Patch(':channelId/messages/:messageId')
-  async editMessage(@Param() params, @Body() editMessageDto: EditMessageDto) {
-    return await this.channelsService.editMessage(params.channelId, params.messageId, editMessageDto)
+  async editMessage(@Param() params, @Body() editMessageDto: EditMessageDto, @DUser() user: AccessToken) {
+    return await this.channelsService.editMessage(params.channelId, params.messageId, editMessageDto, user.id)
   }
 
   @Delete(':channelId/messages/:messageId')

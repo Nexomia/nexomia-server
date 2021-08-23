@@ -1,3 +1,4 @@
+import { ChannelResponse } from './../channels/responses/channel.response';
 import { PatchGuildDto } from './dto/patch-guild.dto';
 import { ComputedPermissions } from './schemas/role.schema';
 import { Parser } from 'src/utils/parser/parser.utils';
@@ -30,13 +31,13 @@ export class GuildsController {
   }
 
   @Get(':guildId/channels')
-  async getChannels(@Param('guildId') guildId, @Body() user: AccessToken): Promise<Channel[]> {
+  async getChannels(@Param('guildId') guildId, @Body() user: AccessToken): Promise<ChannelResponse[]> {
     if (!this.guildsService.isMember(guildId, user.id)) throw new ForbiddenException()
     return this.guildsService.getChannels(guildId)
   }
 
   @Post(':guildId/channels')
-  async createChannel(@Body() createChannelDto: CreateChannelDto, @Param('guildId') guildId, @DUser() user: AccessToken): Promise<Channel> {
+  async createChannel(@Body() createChannelDto: CreateChannelDto, @Param('guildId') guildId, @DUser() user: AccessToken): Promise<ChannelResponse> {
     if (!this.guildsService.isMember(guildId, user.id)) throw new ForbiddenException()
     const perms = await this.parser.computePermissions(guildId, user.id)
     if (perms & (

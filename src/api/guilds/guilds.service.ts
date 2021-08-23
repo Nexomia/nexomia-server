@@ -1,3 +1,4 @@
+import { ChannelResponse, ChannelResponseValidate } from './../channels/responses/channel.response';
 import { UserDocument } from './../users/schemas/user.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PatchGuildDto } from './dto/patch-guild.dto';
@@ -110,7 +111,7 @@ export class GuildsService {
     return cleanedGuild
   }
 
-  async createChannel(guildId: string, channelDto: CreateChannelDto): Promise<Channel> {
+  async createChannel(guildId: string, channelDto: CreateChannelDto): Promise<ChannelResponse> {
     if (channelDto.type < 2) throw new BadRequestException()
     const channel = new this.channelModel()
     channel.id = new UniqueID(config.snowflake).getUniqueID()
@@ -133,7 +134,7 @@ export class GuildsService {
     if (channelDto.parent_id) channel.parent_id = channelDto.parent_id
 
     await channel.save()
-    const { _id, ...cleanedChannel } = channel.toObject()
+    const cleanedChannel = ChannelResponseValidate(channel.toObject())
 
     const data = {
       event: 'guild.channel_created',
@@ -148,8 +149,8 @@ export class GuildsService {
     return cleanedChannel
   }
 
-  async getChannels(guildId): Promise<Channel[]> {
-    return await this.channelModel.find({ guild_id: guildId }).select('-_id').lean()
+  async getChannels(guildId): Promise<ChannelResponse[]> {
+    return (await this.channelModel.find({ guild_id: guildId }).select('-_id')).map(channel => { return ChannelResponseValidate(channel) })
   }
 
   async getMembers(guildId, userId): Promise<ExtendedMember[]> {

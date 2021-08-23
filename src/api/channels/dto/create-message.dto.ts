@@ -34,6 +34,10 @@ export class CreateMessageDto {
   @IsOptional()
   allowed_mentions?: AllowedMentions;
 
+  @IsOptional()
+  @IsBoolean()
+  allow_forwarding?: boolean;
+
   /**
    * Array of message ids what need to resent
    */

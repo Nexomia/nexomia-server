@@ -1,3 +1,5 @@
+import { EditMessageDto } from './dto/edit-message.dto';
+import { ChannelResponse, ChannelResponseValidate } from './responses/channel.response';
 import { GetChannelMessagesDto } from './dto/get-channel-messages.dto';
 import { MessageResponse, MessageResponseValidate } from './responses/message.response';
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema';
@@ -30,10 +32,10 @@ export class ChannelsService {
     private eventEmitter: EventEmitter2
   ) {}
 
-  async getChannel(channelId): Promise<Channel> {
-    const channel = await this.channelModel.findOne({ id: channelId }).select('-_id').lean()
+  async getChannel(channelId): Promise<ChannelResponse> {
+    const channel = await (await this.channelModel.findOne({ id: channelId })).toObject()
     if (!channel) throw new NotFoundException()
-    return channel
+    return ChannelResponseValidate(channel)
   }
 
   async deleteChannel(channelId) {}
@@ -122,7 +124,6 @@ export class ChannelsService {
     return message
   }
   async createMessage(userId: string, channelId: string, messageDto: CreateMessageDto, systemData?: any): Promise<MessageResponse> {
-    console.log(messageDto)
     const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
@@ -146,6 +147,9 @@ export class ChannelsService {
 
     if (channel.guild_id)
       message.guild_id = channel.guild_id
+
+    if (messageDto.allow_forwarding) 
+      message.allow_forwarding = messageDto.allow_forwarding
     
     if (
       !(
@@ -185,7 +189,6 @@ export class ChannelsService {
     await message.save()
     const message2 = <AgreggatedMessage>Object.assign(message.toObject(), { forwarded_compiled: forwarded_messages })
     const cleanedMessage = this.messageParser(message2)
-    console.log(cleanedMessage)
     const data = {
       event: 'message.created',
       data: cleanedMessage
@@ -293,7 +296,74 @@ export class ChannelsService {
 
   async deleteReactionsForEmoji(channelId, messageId) {}
 
-  async editMessage(channelId, messageId, message) {}
+  async editMessage(channelId: string, messageId: string, messageDto: EditMessageDto, userId: string) {
+    const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+      if (!channel.recipients.includes(userId)) throw new ForbiddenException()
+    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+
+    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+    if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.WRITE_MESSAGES
+      ))
+    ) throw new ForbiddenException()
+
+    let changes: number = 0
+
+    const message = await this.messageModel.findOne({ id: messageId, author: userId, deleted: false })
+    if (!message) throw new NotFoundException()
+    
+    const cachedMessage = message.toObject()
+    if (messageDto.content && messageDto.content !== message.content) {
+      message.content = messageDto.content
+      changes++
+    }
+    let forwarded_messages: Message[]
+    if (messageDto.forwarded_messages && messageDto.forwarded_messages.length !== message.forwarded_ids?.length) {
+      forwarded_messages = await this.messageModel.aggregate([
+        { $match: { id: { $in: messageDto.forwarded_messages }, allow_forwarding: true, deleted: false } },
+        { $sort: { id: 1 } }
+      ])
+      if (forwarded_messages) {
+        message.forwarded_ids = []
+        message.forwarded_revs = []
+        for (const msg of forwarded_messages) {
+          const perms2 = await this.parser.computePermissions(msg.guild_id, userId, msg.channel_id)
+          if (
+            msg.guild_id !== channel.guild_id &&
+            !(perms2 & 
+              ComputedPermissions.FORWARD_MESSAGES_FROM_SERVER |
+              ComputedPermissions.OWNER |
+              ComputedPermissions.ADMINISTRATOR
+            )
+          ) throw new BadRequestException()
+          message.forwarded_ids.push(msg.id)
+          message.forwarded_revs.push(msg.edit_history?.length || 0)
+          changes++
+        }
+      }
+    }
+    if (!changes) throw new BadRequestException()
+
+      message.edited = true
+      message.edit_time = Date.now()
+      message.edit_history.push(cachedMessage)
+      await message.save()
+      const message2 = <AgreggatedMessage>Object.assign(message.toObject(), { forwarded_compiled: forwarded_messages })
+      const cleanedMessage = this.messageParser(message2)
+      const data = {
+        event: 'message.edited',
+        data: cleanedMessage
+      }
+      this.eventEmitter.emit(
+        'message.edited',
+        data, 
+        channel?.guild_id
+      )
+      return cleanedMessage
+  }
 
   async deleteMessage(channelId, messageId, userId): Promise<void> {
     const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
