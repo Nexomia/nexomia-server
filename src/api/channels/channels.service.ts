@@ -56,16 +56,15 @@ export class ChannelsService {
     { 
       $match: filters.ids 
       ? {
-         id: { $in: filters.ids },
-         channel_id: channelId,
-         deleted: false 
+          id: { $in: filters.ids },
+          channel_id: channelId,
+          deleted: false 
         }
-
       : {
-        channel_id: channelId,
-        created: { $gt: parseInt(filters?.after) || 0, $lt: parseInt(filters?.before) || Date.now() },
-        deleted: false 
-      }
+          channel_id: channelId,
+          created: { $gt: parseInt(filters?.after) || 0, $lt: parseInt(filters?.before) || Date.now() },
+          deleted: false 
+        }
     },
     { $sort: { created: -1 } },
     { $skip: parseInt(filters?.offset) || 0 },
@@ -526,8 +525,12 @@ export class ChannelsService {
       ComputedPermissions.ADMINISTRATOR |
       ComputedPermissions.MANAGE_MESSAGES
     ))) throw new ForbiddenException()
-    const msgChannelId = await this.messageModel.exists({ id: messageId, channel_id: channelId })
+    const msgChannelId = await this.messageModel.exists({ id: messageId, channel_id: channelId, type: { $lt: 3 } })
     if (!msgChannelId) throw new BadRequestException()
+
+    const msgPinned = await this.channelModel.exists({ id: channelId, pinned_messages_ids: messageId })
+    if (msgPinned) throw new BadRequestException()
+
     await this.channelModel.updateOne(
       { id: channelId },
       { $push: { pinned_messages_ids: messageId } }
@@ -584,8 +587,13 @@ export class ChannelsService {
   }
 
   async getPinnedMessages(channelId, userId) {
-    const messages = await (await this.channelModel.findOne({ id: channelId }, 'pinned_messages_ids')).toObject().pinned_messages_ids
-    return await this.getChannelMessages(channelId, { ids: messages, count: messages.length.toString() }, userId)
+    const pinnedMessages = await (await this.channelModel.findOne({ id: channelId }, 'pinned_messages_ids')).toObject().pinned_messages_ids
+    const messages = await this.getChannelMessages(channelId, { ids: pinnedMessages, count: pinnedMessages.length.toString() }, userId)
+    const sortedMessages: MessageResponse[] = []
+    messages.map(msg => {
+      sortedMessages[pinnedMessages.indexOf(msg.id)] = msg
+    })
+    return sortedMessages
   }
 
   async addRecipient(channelId, userId) {}
