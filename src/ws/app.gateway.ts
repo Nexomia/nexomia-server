@@ -215,10 +215,10 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
   async message(data, guildId) {
     let recipients: string[] = []
     if (guildId) {
-        let membersStr: string = await this.onlineManager.get(guildId)
-        if (membersStr) 
-          recipients = JSON.parse(membersStr)
-      for(const recipient of recipients) {
+      let membersStr: string = await this.onlineManager.get(guildId)
+      if (membersStr) 
+        recipients = JSON.parse(membersStr)
+      for (const recipient of recipients) {
         const perms = await this.parser.computePermissions(guildId, recipient, data.data.channel_id)
         if (!(perms & (
             ComputedPermissions.OWNER |
@@ -241,6 +241,7 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   @OnEvent('channel.*')
   async channel(data, userId: string) {
+    if (data.event === 'channel.typing') return this.message(data, userId)
     const cachedUser: CachedUser = JSON.parse(await this.onlineManager.get(userId))
     let recipients: string[] = []
     if (cachedUser.guilds.length) {

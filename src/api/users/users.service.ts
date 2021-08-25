@@ -1,3 +1,5 @@
+import { ChannelResponse, ChannelResponseValidate } from './../channels/responses/channel.response';
+import { GuildsService } from './../guilds/guilds.service';
 import { ChannelsService } from './../channels/channels.service';
 import { MessageType } from './../channels/schemas/message.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -24,7 +26,8 @@ export class UsersService {
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
-    private channelsService: ChannelsService
+    private channelsService: ChannelsService,
+    private guildsService: GuildsService
   ) {}
 
   async getUser(userId, me): Promise<User> {
@@ -71,9 +74,22 @@ export class UsersService {
   }
 
   async leaveGuild(userId, guildId): Promise<void> {
+    if (!await this.guildsService.isMember(guildId, userId)) throw new NotFoundException()
+
+    let membersStr: string = await this.onlineManager.get(guildId)
+    if (membersStr) {
+      let members: string[] = JSON.parse(membersStr)
+      const index = members.indexOf(userId)
+      if (index >= 0) {
+        members = members.filter(m => m !== userId )
+        console.log(members)
+        await this.onlineManager.set(guildId, JSON.stringify(members))
+      }
+    }
+
     const guildChannel = await (await this.guildModel.findOne({ id: guildId }, 'default_channel')).toObject()
-    if (guildChannel.default_channel !== '')
-      await this.channelsService.createMessage(userId, guildChannel.default_channel, {}, { type: MessageType.LEAVE })
+      if (guildChannel.default_channel !== '')
+        await this.channelsService.createMessage(userId, guildChannel.default_channel, {}, { type: MessageType.LEAVE })
 
     const guild = await this.guildModel.updateOne(
       { id: guildId, owner_id: { $ne: userId }, 'members.id': userId },
@@ -85,15 +101,6 @@ export class UsersService {
       { guild_id: guildId, members: userId },
       { $pull: { members: userId } }
     )
-
-    let membersStr: string = await this.onlineManager.get(guildId)
-    if (membersStr) {
-      let members: string[] = JSON.parse(membersStr)
-      const index = members.indexOf(userId)
-      if (index >= 0)
-        members.splice(index, 1)
-        await this.onlineManager.set(guildId, JSON.stringify(members))
-    }
 
     const data = {
       event: 'guild.user_left',
@@ -110,18 +117,18 @@ export class UsersService {
     return
   }
 
-  async getChannels(userId): Promise<Channel[]> {
-    return await this.channelModel.find({ 'recipients': { $in: userId } }).select('-_id').lean()
+  async getChannels(userId): Promise<ChannelResponse[]> {
+    return (await this.channelModel.find({ 'recipients': { $in: userId } }).select('-_id').lean()).map(channel => { return ChannelResponseValidate(channel) })
   }
 
-  async createChannel(userId, channelData): Promise<Channel> {
+  async createChannel(userId, channelData): Promise<ChannelResponse> {
     const channel = new this.channelModel()
     channel.id = new UniqueID(config.snowflake).getUniqueID()
     channel.owner_id = userId
     channel.type = ChannelType.DM
     channel.recipients.push(userId, channelData.recipernt_id)
     await channel.save()
-    const { _id, ...cleanedChannel } = channel.toObject()
+    const cleanedChannel = ChannelResponseValidate(channel.toObject())
 
     let members: string[] = []
     for (const recipient of channel.recipients) {

@@ -108,7 +108,7 @@ export class InvitesService {
       this.channelService.createMessage(userId, guild.default_channel, {}, { type: MessageType.JOIN })
 
     const data = {
-      event: 'guild.joined',
+      event: 'guild.user_joined',
       data: {
         id: userId
       }

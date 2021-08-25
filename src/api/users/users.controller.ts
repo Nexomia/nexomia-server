@@ -1,3 +1,4 @@
+import { ChannelResponse } from './../channels/responses/channel.response';
 import { Channel } from './../channels/schemas/channel.schema';
 import { Guild } from './../guilds/schemas/guild.schema';
 import { User } from 'src/api/users/schemas/user.schema';
@@ -42,12 +43,12 @@ export class UsersController {
 
   //User DMs
   @Get('@me/channels')
-  async channels(@DUser() user: AccessToken): Promise<Channel[]> {
+  async channels(@DUser() user: AccessToken): Promise<ChannelResponse[]> {
     return await this.usersService.getChannels(user.id)
   }
 
   @Post('@me/channels')
-  create(@DUser() user: AccessToken, @Body() createChannelDto): Promise<Channel> {
+  create(@DUser() user: AccessToken, @Body() createChannelDto): Promise<ChannelResponse> {
     return this.usersService.createChannel(user.id, createChannelDto)
   }
 }
