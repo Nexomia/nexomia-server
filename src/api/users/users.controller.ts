@@ -1,3 +1,4 @@
+import { UserResponse } from './responses/user.response';
 import { ChannelResponse } from './../channels/responses/channel.response';
 import { Channel } from './../channels/schemas/channel.schema';
 import { Guild } from './../guilds/schemas/guild.schema';
@@ -15,7 +16,7 @@ export class UsersController {
 
   //User Data
   @Get(':id')
-  async get(@Param('id') id, @DUser() user: AccessToken): Promise<User> {
+  async get(@Param('id') id, @DUser() user: AccessToken): Promise<UserResponse> {
     let me: boolean = false
     if (id === '@me' || id === user.id) {
       id = user.id
@@ -25,7 +26,7 @@ export class UsersController {
   }
 
   @Patch('@me')
-  async patch(@Body() modifyUserDto: ModifyUserDto, @DUser() user: AccessToken): Promise<User> {
+  async patch(@Body() modifyUserDto: ModifyUserDto, @DUser() user: AccessToken): Promise<UserResponse> {
     return await this.usersService.patchUser(user.id, modifyUserDto)
   }
 

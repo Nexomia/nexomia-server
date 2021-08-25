@@ -1,3 +1,4 @@
+import { SaltService } from './../../utils/salt/salt.service';
 import { ChannelResponse, ChannelResponseValidate } from './../channels/responses/channel.response';
 import { GuildsService } from './../guilds/guilds.service';
 import { ChannelsService } from './../channels/channels.service';
@@ -9,13 +10,14 @@ import { config } from './../../app.config';
 import { GuildDocument } from './../guilds/schemas/guild.schema';
 import { ModifyUserDto } from './dto/modify-user.dto';
 import { Model } from 'mongoose';
-import { Injectable, NotFoundException, CACHE_MANAGER, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, CACHE_MANAGER, Inject, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import { Channel, ChannelDocument } from '../channels/schemas/channel.schema';
 import { Guild } from '../guilds/schemas/guild.schema';
 import { UniqueID } from 'nodejs-snowflake';
 import { Cache } from 'cache-manager';
+import { UserResponse, UserResponseValidate } from './responses/user.response';
 
 @Injectable()
 export class UsersService {
@@ -27,38 +29,87 @@ export class UsersService {
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
     private channelsService: ChannelsService,
-    private guildsService: GuildsService
+    private guildsService: GuildsService,
+    private saltService: SaltService
   ) {}
 
-  async getUser(userId, me): Promise<User> {
-    const user: User = await this.userModel.findOne(
+  async getUser(userId, me): Promise<UserResponse> {
+    const user: User = (await this.userModel.findOne(
       { id: userId }
-    )
-    .select('-_id id username discriminator avatar banner presence description status verified premium_type public_flags email')
-    .lean()
+    )).toObject()
     if (!user) throw new NotFoundException()
     user.connected = !!(await this.onlineManager.get(user.id) && user.presence !== 4)
-    if (me) return user
+    if (!user.connected) user.presence = 4
+    const cleanedUser = UserResponseValidate(user)
+    if (me) return cleanedUser
     else {
-      const { email, verified, ...cleanedUser } = user
-      return cleanedUser
+      const { email, verified, ...cleanedUser2 } = cleanedUser
+      return cleanedUser2
     }
 
   }
   
-  async patchUser(userId, modifyData: ModifyUserDto): Promise<User> {
-    const modifiedUser: User = await this.userModel.updateOne(
-      { id: userId },
-      { modifyData }
-    )
-    .select('-_id id username discriminator avatar banner presence description status verified premium_type public_flags email')
-    .lean()
-    if (!modifiedUser) throw new NotFoundException()
+  async patchUser(userId, modifyData: ModifyUserDto): Promise<UserResponse> {
+    const user: UserDocument = await this.userModel.findOne({ id: userId })
+    if (!user) throw new NotFoundException()
 
-    modifiedUser.connected = !!(await this.onlineManager.get(modifiedUser.id) && modifiedUser.presence !== 4)
+    const pass = this.saltService.password(modifyData.password) === user.password
+
+    let changes = 0
+    let tagChanges = 0
+
+    if (modifyData.username && (modifyData.username !== user.username)) {
+      if (!pass) throw new BadRequestException()
+      user.username = modifyData.username
+      changes++
+      tagChanges++
+    }
+    
+    if (modifyData.discriminator && modifyData.description !== user.discriminator) {
+      if (!pass) throw new BadRequestException()
+      user.discriminator = modifyData.discriminator
+      changes++
+      tagChanges++
+    }
+
+    if (modifyData.new_password) {
+      if (!pass) throw new BadRequestException()
+      user.password = this.saltService.password(modifyData.new_password)
+      user.tokens = []
+      changes++
+    }
+
+    if (modifyData.status && modifyData.status !== user.status) {
+      user.status = modifyData.status
+      changes++
+    }
+
+    if (modifyData.description && modifyData.description !== user.description) {
+      user.description = modifyData.description
+      changes++
+    }
+    
+    if (modifyData.presence && (modifyData.presence !== user.presence)) {
+      user.presence = modifyData.presence
+      changes++
+    }
+
+    if (tagChanges && await this.userModel.exists({ username: user.username, discriminator: user.discriminator })) throw new BadRequestException()
+
+    if (!changes) throw new BadRequestException()
+
+    await user.save()
+
+    let modifiedUser = UserResponseValidate(user.toObject())
+
+    modifiedUser.connected = !!(await this.onlineManager.get(user.id) && user.presence !== 4)
+    if (!modifiedUser.connected) modifiedUser.presence = 4
+    
+    const { verified, email, ...cleanedUser } = modifiedUser
+
     const data = {
       event: 'user.patched',
-      data: modifiedUser
+      data: cleanedUser
     }
     this.eventEmitter.emit(
       'user.patched',

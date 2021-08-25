@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, Length } from 'class-validator';
+import { IsEmail, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 export class ModifyUserDto {
   @IsOptional()
   @IsEmail()
@@ -16,6 +16,11 @@ export class ModifyUserDto {
 
   @IsOptional()
   @IsString()
+  @Length(6, 30)
+  new_password?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(4, 4)
   discriminator?: string;
 
@@ -26,4 +31,18 @@ export class ModifyUserDto {
   @IsOptional()
   @IsString()
   banner?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(4)
+  presence?: number;
 }

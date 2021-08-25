@@ -242,16 +242,16 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
   @OnEvent('channel.*')
   async channel(data, userId: string) {
     if (data.event === 'channel.typing') return this.message(data, userId)
-    const cachedUser: CachedUser = JSON.parse(await this.onlineManager.get(userId))
+    const cachedUser: CachedUser = JSON.parse(await this.onlineManager.get(userId) || '{}')
     let recipients: string[] = []
-    if (cachedUser.guilds.length) {
+    if (cachedUser.guilds && cachedUser.guilds.length) {
       for (const guild of cachedUser.guilds) {
         let membersStr: string = await this.onlineManager.get(guild)
         if (membersStr) 
           recipients = recipients.concat(JSON.parse(membersStr))
       }
     }
-    if (cachedUser.channels.length) {
+    if (cachedUser.channels && cachedUser.channels.length) {
       for (const channel of cachedUser.channels){
         let membersStr: string = await this.onlineManager.get(channel)
         if (membersStr) 
@@ -280,16 +280,17 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
 
   @OnEvent('user.*')
   async user(data, userId: string) {
-    const cachedUser: CachedUser = JSON.parse(await this.onlineManager.get(userId))
+    const cachedUser: CachedUser = JSON.parse(await this.onlineManager.get(userId) || '{}')
+    console.log(cachedUser)
     let recipients: string[] = []
-    if (cachedUser.guilds.length) {
+    if (cachedUser.guilds && cachedUser.guilds.length) {
       for (const guild of cachedUser.guilds) {
         let membersStr: string = await this.onlineManager.get(guild)
         if (membersStr) 
           recipients = recipients.concat(JSON.parse(membersStr))
       }
     }
-    if (cachedUser.channels.length) {
+    if (cachedUser.channels && cachedUser.channels.length) {
       for (const channel of cachedUser.channels) {
         let membersStr: string = await this.onlineManager.get(channel)
         if (membersStr) 

@@ -1,3 +1,4 @@
+import { SaltService } from './../../utils/salt/salt.service';
 import { GuildsModule } from './../guilds/guilds.module';
 import { ChannelsModule } from './../channels/channels.module';
 import { Role, RoleSchema } from './../guilds/schemas/role.schema';
@@ -24,7 +25,7 @@ import { Channel, ChannelSchema } from '../channels/schemas/channel.schema';
     ]),
   ],
   exports: [UsersService, MongooseModule],
-  providers: [UsersService],
+  providers: [UsersService, SaltService],
   controllers: [UsersController],
 })
 export class UsersModule {}

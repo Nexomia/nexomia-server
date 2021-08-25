@@ -130,7 +130,7 @@ export class User extends Connected {
    * 4 - offline
    */
   @Prop({ default: 4 })
-  presence?: 1 | 2 | 3 | 4;
+  presence?: number;
 }
 
 export class RefreshToken {
