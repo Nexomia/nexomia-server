@@ -133,7 +133,6 @@ export class UsersService {
       const index = members.indexOf(userId)
       if (index >= 0) {
         members = members.filter(m => m !== userId )
-        console.log(members)
         await this.onlineManager.set(guildId, JSON.stringify(members))
       }
     }

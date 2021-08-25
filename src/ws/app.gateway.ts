@@ -281,7 +281,6 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
   @OnEvent('user.*')
   async user(data, userId: string) {
     const cachedUser: CachedUser = JSON.parse(await this.onlineManager.get(userId) || '{}')
-    console.log(cachedUser)
     let recipients: string[] = []
     if (cachedUser.guilds && cachedUser.guilds.length) {
       for (const guild of cachedUser.guilds) {
