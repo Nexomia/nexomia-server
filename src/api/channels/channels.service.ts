@@ -377,6 +377,12 @@ export class ChannelsService {
         { id: messageId, channel_id: channelId },
         { $set: { deleted: true } }
       )
+
+      await this.channelModel.updateOne(
+        { id: channelId },
+        { $pull: { pinned_messages_ids: messageId } }
+      )
+
     } else if (channel.type === ChannelType.GUILD_TEXT || channel.type === ChannelType.GUILD_PUBLIC_THREAD) {
       const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
       if (!(perms & (
@@ -389,6 +395,12 @@ export class ChannelsService {
         { id: messageId, channel_id: channelId },
         { $set: { deleted: true } }
       )
+
+      await this.channelModel.updateOne(
+        { id: channelId },
+        { $pull: { pinned_messages_ids: messageId } }
+      )
+
     } else throw new ForbiddenException()
 
     const data = {
@@ -432,6 +444,12 @@ export class ChannelsService {
         { id: messageIds, channel_id: channelId },
         { $set: { deleted: true } }
       )
+
+      await this.channelModel.updateOne(
+        { id: channelId },
+        { $pull: { pinned_messages_ids: { $in: messageIds } } }
+      )
+
     }
 
     const data = {
@@ -593,7 +611,7 @@ export class ChannelsService {
     messages.map(msg => {
       sortedMessages[pinnedMessages.indexOf(msg.id)] = msg
     })
-    return sortedMessages
+    return sortedMessages.filter( Boolean )
   }
 
   async addRecipient(channelId, userId) {}
