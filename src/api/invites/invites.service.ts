@@ -110,11 +110,12 @@ export class InvitesService {
     const data = {
       event: 'guild.user_joined',
       data: {
-        id: userId
+        id: userId,
+        guild: guild.id
       }
     }
     this.eventEmitter.emit(
-      'guild.user_left',
+      'guild.user_joined',
       data,
       guild.id
     )

@@ -155,7 +155,8 @@ export class UsersService {
     const data = {
       event: 'guild.user_left',
       data: {
-        id: userId
+        id: userId,
+        guild: guildId
       }
     }
     this.eventEmitter.emit(
