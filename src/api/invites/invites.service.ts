@@ -146,6 +146,9 @@ export class InvitesService {
       { $push: { members: userId } }
     )
 
+    invite.uses++
+    await invite.save()
+
     if (guild.default_channel !== '')
       this.channelService.createMessage(userId, guild.default_channel, {}, { type: MessageType.JOIN })
 
