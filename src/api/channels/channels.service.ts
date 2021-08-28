@@ -1,5 +1,5 @@
+import { User, UserDocument } from './../users/schemas/user.schema';
 import { UserResponse } from './../users/responses/user.response';
-import { User } from 'src/api/users/schemas/user.schema';
 import { EditMessageDto } from './dto/edit-message.dto';
 import { ChannelResponse, ChannelResponseValidate } from './responses/channel.response';
 import { GetChannelMessagesDto } from './dto/get-channel-messages.dto';
@@ -28,6 +28,7 @@ export class ChannelsService {
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
     @InjectModel(Emoji.name) private emojiModel: Model<EmojiDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private guildService: GuildsService,
     private parser: Parser,
@@ -184,7 +185,12 @@ export class ChannelsService {
     }
     // if (messageDto.attachments)
     await message.save()
-    const message2 = <AgreggatedMessage>Object.assign(message.toObject(), { forwarded_compiled: forwarded_messages })
+    const message2 = <AgreggatedMessage>Object.assign(message.toObject(),
+      {
+        forwarded_compiled: forwarded_messages,
+        userObject: (await this.userModel.findOne({ id: userId })).toObject()
+      }
+    )
     const cleanedMessage = this.messageParser(message2)
     const data = {
       event: 'message.created',

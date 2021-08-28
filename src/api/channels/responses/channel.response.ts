@@ -18,10 +18,6 @@ const ChannelResponseSchema = myzod.object({
   user_limit: myzod.number().optional(),
   rate_limit_per_user: myzod.number().optional(),
   pinned_messages_ids: myzod.array(myzod.unknown())
-
-
-
-
 });
 
 export type ChannelResponse = Infer<typeof ChannelResponseSchema>;
