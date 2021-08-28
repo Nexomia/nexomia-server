@@ -31,13 +31,13 @@ export class ChannelsController {
   }
 
   @Get(':channelId/messages')
-  async messages(@Param('channelId') channelId, @Query() getChannelMessagesDto: GetChannelMessagesDto, @DUser() user: AccessToken): Promise<MessageResponse[]> {
+  async messages(@Param('channelId') channelId, @Query() getChannelMessagesDto: GetChannelMessagesDto, @DUser() user: AccessToken): Promise<MessageResponse[] | MessageResponse> {
     return await this.channelsService.getChannelMessages(channelId, getChannelMessagesDto, user.id)
   }
 
   @Get(':channelId/messages/:messageId')
-  async message(@Param() params, @DUser() user: AccessToken): Promise<MessageResponse> {
-    return await this.channelsService.getChannelMessage(params.channelId, params.messageId, user.id)
+  async message(@Param() params, @DUser() user: AccessToken): Promise<MessageResponse | MessageResponse[]> {
+    return await this.channelsService.getChannelMessages(params.channelId, { ids: [ params.messageId ] }, user.id, true)
   }
 
   @Post(':channelId/messages')
