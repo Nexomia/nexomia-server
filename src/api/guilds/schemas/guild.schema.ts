@@ -21,7 +21,7 @@ export class Guild {
    * When this message was sent
    */
   @Prop()
-  created: number;
+  created?: number;
 
   /**
    * Icon hash
@@ -87,7 +87,7 @@ export class Guild {
    * Enabled guild features
    */
   @Prop()
-  features?: string[];
+  features?: number;
 
   /**
    * Required MFA level for the guild

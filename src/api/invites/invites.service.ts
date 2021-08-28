@@ -1,3 +1,6 @@
+import { GuildResponseValidate } from './../guilds/responses/guild.response';
+import { RoleResponseValidate } from './../guilds/responses/role.response';
+import { ChannelResponseValidate } from './../channels/responses/channel.response';
 import { MessageType } from './../channels/schemas/message.schema';
 import { ChannelsService } from './../channels/channels.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -5,7 +8,7 @@ import { Role, RoleDocument } from './../guilds/schemas/role.schema';
 import { Invite, InviteDocument } from './schemas/invite.schema';
 import { Guild, GuildDocument, GuildShort, GuildMember } from './../guilds/schemas/guild.schema';
 import { Channel, ChannelShort } from './../channels/schemas/channel.schema';
-import { Injectable, NotFoundException, BadRequestException, Inject, CACHE_MANAGER } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, CACHE_MANAGER } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cache } from 'cache-manager';
@@ -82,8 +85,46 @@ export class InvitesService {
   async accept(inviteId, userId): Promise<Guild> {
     const invite = await this.inviteModel.findOne({ code: inviteId })
     if (!invite || invite.uses === invite.max_uses) throw new NotFoundException()
-    const guild = await this.guildModel.findOne({ id: invite.guild_id, 'members.id': { $ne: userId } })
-    if (!guild) throw new BadRequestException()
+    const guild = (await this.guildModel.aggregate([
+      {
+        $match: {
+          id: invite.guild_id,
+          'members.id': { $ne: userId }
+        }
+      },
+      {
+        $lookup: {
+          from: 'channels',
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [ '$guild_id', invite.guild_id ]
+                }
+              }
+            }
+          ],
+          as: 'channels'
+        },
+      },
+      {
+        $lookup: {
+          from: 'roles',
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [ '$guild_id', invite.guild_id ]
+                }
+              }
+            }
+          ],
+          as: 'roles'
+        },
+      }
+    ]))[0]
+
+    if (!guild) throw new NotFoundException()
     
     const member: GuildMember = {
       id: userId,
@@ -95,14 +136,15 @@ export class InvitesService {
         deny: 0
       }
     }
-    guild.members.push(member)
-    await guild.save()
-    const updatedGuild = guild.toObject()
+
+    await this.guildModel.updateOne(
+      { id: guild.id },
+      { $push: { members: member } }
+    )
     await this.roleModel.updateOne(
       { guild_id: guild.id, default: true },
       { $push: { members: userId } }
     )
-    delete updatedGuild.members
 
     if (guild.default_channel !== '')
       this.channelService.createMessage(userId, guild.default_channel, {}, { type: MessageType.JOIN })
@@ -127,6 +169,9 @@ export class InvitesService {
       members.push(userId)
       await this.onlineManager.set(guild.id, JSON.stringify(members))
     }
-    return updatedGuild
+    
+    guild.channels.map(channel => { return ChannelResponseValidate(channel) })
+    guild.roles.map(role => { return RoleResponseValidate(role) })
+    return GuildResponseValidate(guild)
   }
 }
