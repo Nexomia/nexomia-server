@@ -111,7 +111,7 @@ export class ChannelsService {
       },
     }
   ])
-  if (!data.length) throw new NotFoundException()
+  if (!data.length && one) throw new NotFoundException()
   if (one && filters?.ids.length === 1) return this.messageParser(data[0])
   
   const ready = data.map(msg => {
