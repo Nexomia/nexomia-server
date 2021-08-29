@@ -11,6 +11,7 @@ import { config } from './../../app.config';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { Channel, ChannelDocument, ChannelType } from './../channels/schemas/channel.schema';
 import { Guild, GuildDocument, GuildMember } from './schemas/guild.schema';
+import { Invite, InviteDocument } from '../invites/schemas/invite.schema';
 import { CreateGuildDto } from './dto/create-guild.dto';
 import { Injectable, BadRequestException, NotFoundException, Inject, CACHE_MANAGER } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -22,6 +23,7 @@ import { Cache } from 'cache-manager';
 export class GuildsService {
   constructor(
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
+    @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
@@ -30,7 +32,45 @@ export class GuildsService {
   ) {}
 
   async getGuild(guildId, userId): Promise<Guild> {
-    const guild = await this.guildModel.findOne({ id: guildId, 'members.id': userId }).select('-_id -members').lean()
+    // const guild = await this.guildModel.findOne({ id: guildId, 'members.id': userId }).select('-_id -members').lean()
+    const guild = (await this.guildModel.aggregate([
+      {
+        $match: {
+          id: guildId,
+          'members.id': userId
+        }
+      },
+      {
+        $lookup: {
+          from: 'channels',
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [ '$guild_id', guildId ]
+                }
+              }
+            }
+          ],
+          as: 'channels'
+        },
+      },
+      {
+        $lookup: {
+          from: 'roles',
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [ '$guild_id', guildId ]
+                }
+              }
+            }
+          ],
+          as: 'roles'
+        },
+      }
+    ]))[0]
     if (!guild) throw new NotFoundException()
 
     return guild
@@ -170,8 +210,8 @@ export class GuildsService {
           localField: 'members.id',
           foreignField: 'id',
           as: 'users'
-      }
-    },
+        }
+      },
     {
       $project: {
         'members': 1,
@@ -201,17 +241,17 @@ export class GuildsService {
     const user = (await this.userModel.findOne({ id: userId }).select('-_id id username discriminator avatar banner description status presence premium_type public_flags')).toObject()
     let roles: string[] = []
     const rolesArray = (await this.roleModel.find({ guild_id: guildId, members: { $in: userId } }, 'id')).forEach(role => roles.push(role.id))
-   const extendedMember = new ExtendedMember()
-   extendedMember.id = member.id
-   extendedMember.joined_at = member.joined_at
-   extendedMember.nickname = member.nickname
-   extendedMember.permissions = member.permissions
-   extendedMember.mute = member.mute
-   extendedMember.deaf = member.deaf
-   extendedMember.user = user
-   extendedMember.roles = roles
-   extendedMember.user.connected = !!(await this.onlineManager.get(user.id) && user.presence !== 4)
-   return extendedMember
+    const extendedMember = new ExtendedMember()
+    extendedMember.id = member.id
+    extendedMember.joined_at = member.joined_at
+    extendedMember.nickname = member.nickname
+    extendedMember.permissions = member.permissions
+    extendedMember.mute = member.mute
+    extendedMember.deaf = member.deaf
+    extendedMember.user = user
+    extendedMember.roles = roles
+    extendedMember.user.connected = !!(await this.onlineManager.get(user.id) && user.presence !== 4)
+    return extendedMember
   }
 
   async getRoles(guildId: string): Promise<RoleResponse[]> {
@@ -221,6 +261,14 @@ export class GuildsService {
   async getRole(guildId: string, roleId: string, userId): Promise<RoleResponse> {
     const role = (await this.roleModel.findOne({ id: roleId, guild_id: guildId }).select('-_id')).toObject()
     return RoleResponseValidate(role)
+  }
+
+  async getInvites(guildId) {
+    const invites = await this.inviteModel.find(
+      { guild_id: guildId },
+      '-_id'
+    )
+    return invites
   }
 
   async createRole(guildId: string, createRoleDto: RoleDto): Promise<RoleResponse> {

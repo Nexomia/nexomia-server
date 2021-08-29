@@ -74,6 +74,11 @@ export class GuildsController {
     return await this.guildsService.getRole(params.guildId, params.roleId, user.id)
   }
 
+  @Get(':guildId/invites')
+  async getInvites(@Param('guildId') guildId: string, @DUser() user: AccessToken) {
+    return await this.guildsService.getInvites(guildId)
+  }
+
   @Post(':guildId/roles')
   async createRole(@Param('guildId') guildId: string, @Body() createRoleDto: RoleDto, @DUser() user: AccessToken) {
     if (!this.guildsService.isMember(guildId, user.id)) throw new ForbiddenException()

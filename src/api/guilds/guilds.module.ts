@@ -3,6 +3,7 @@ import { User, UserSchema } from './../users/schemas/user.schema';
 import { Channel, ChannelSchema } from './../channels/schemas/channel.schema';
 import { Guild, GuildSchema } from './schemas/guild.schema';
 import { Emoji, EmojiSchema } from './../emojis/schemas/emoji.schema';
+import { Invite, InviteSchema } from '../invites/schemas/invite.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CacheModule, Module } from "@nestjs/common";
 import { GuildsService } from './guilds.service';
@@ -18,7 +19,8 @@ import { Parser } from 'src/utils/parser/parser.utils';
       { name: Guild.name, schema: GuildSchema },
       { name: Channel.name, schema: ChannelSchema },
       { name: User.name, schema: UserSchema },
-      { name: Role.name, schema: RoleSchema }
+      { name: Role.name, schema: RoleSchema },
+      { name: Invite.name, schema: InviteSchema },
     ]),
   ],
   exports: [GuildsService, MongooseModule],
