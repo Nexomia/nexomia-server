@@ -104,7 +104,7 @@ export class ChannelsController {
 
   @Post(':channelId/invites')
   async creaateInvite(@Param('channelId') channelId, @Body() createInviteDto: CreateInviteDto, @DUser() user: AccessToken): Promise<Invite> {
-    return await this.channelsService.creaateInvite(channelId, createInviteDto, user.id)
+    return await this.channelsService.createInvite(channelId, createInviteDto, user.id)
   }
 
   @Post(':channelId/followers')

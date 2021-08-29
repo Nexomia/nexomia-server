@@ -482,7 +482,7 @@ export class ChannelsService {
     return invites
   }
 
-  async creaateInvite(channelId: string, inviteDto: CreateInviteDto, userId): Promise<Invite> {
+  async createInvite(channelId: string, inviteDto: CreateInviteDto, userId): Promise<Invite> {
 
     const channel = await this.channelModel.findOne({ id: channelId }).lean()
     if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) throw new BadRequestException()
