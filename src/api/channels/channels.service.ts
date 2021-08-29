@@ -626,11 +626,9 @@ export class ChannelsService {
     const alpabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
     let code = ''
     for (let i = 0; i < length; i++)
-      code += alpabet[(Math.random() * alpabet.length).toFixed()]
+      code += alpabet[(Math.random() * (alpabet.length - 1)).toFixed()]
     return code
   }
-
-
 
   private messageParser(message: AgreggatedMessage) {
     message.user = MessageUserValidate(message.userObject)
