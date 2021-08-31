@@ -45,15 +45,17 @@ export class ChannelsService {
 
   async getChannelMessages(channelId, filters: GetChannelMessagesDto, userId, one?): Promise<MessageResponse[] | MessageResponse> {
     const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
-    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
-    if (!(perms & (
-      ComputedPermissions.OWNER |
-      ComputedPermissions.ADMINISTRATOR |
-      ComputedPermissions.READ_MESSAGES
-    ))) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.READ_MESSAGES
+      ))) throw new ForbiddenException()
+    }
 
     const data: AgreggatedMessage[] = await this.messageModel.aggregate([
     { 
@@ -121,17 +123,19 @@ export class ChannelsService {
 
   async createMessage(userId: string, channelId: string, messageDto: CreateMessageDto, systemData?: any): Promise<MessageResponse> {
     const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
-    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
-    if (!(perms & (
-      ComputedPermissions.OWNER |
-      ComputedPermissions.ADMINISTRATOR |
-      ComputedPermissions.WRITE_MESSAGES
-    ))
-    && !systemData?.type
-    ) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.WRITE_MESSAGES
+      ))
+      && !systemData?.type
+      ) throw new ForbiddenException()
+    }
 
     const sf = new UniqueID(config.snowflake)
     const message = new this.messageModel()
@@ -167,15 +171,17 @@ export class ChannelsService {
       ])
       if (forwarded_messages) {
         for (const msg of forwarded_messages) {
-          const perms2 = await this.parser.computePermissions(msg.guild_id, userId, msg.channel_id)
-          if (
-            msg.guild_id !== channel.guild_id &&
-            !(perms2 & 
-              ComputedPermissions.FORWARD_MESSAGES_FROM_SERVER |
-              ComputedPermissions.OWNER |
-              ComputedPermissions.ADMINISTRATOR
-            )
-          ) throw new BadRequestException()
+          if (channel.guild_id) {
+            const perms2 = await this.parser.computePermissions(msg.guild_id, userId, msg.channel_id)
+            if (
+              msg.guild_id !== channel.guild_id &&
+              !(perms2 & 
+                ComputedPermissions.FORWARD_MESSAGES_FROM_SERVER |
+                ComputedPermissions.OWNER |
+                ComputedPermissions.ADMINISTRATOR
+              )
+            ) throw new BadRequestException()
+          }
           message.forwarded_ids.push(msg.id)
           message.forwarded_revs.push(msg.edit_history?.length || 0)
         }
@@ -206,24 +212,26 @@ export class ChannelsService {
 
   async createReaction(channelId: string, messageId: string, emojiId: string, userId: string): Promise<void> {
     const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    if (channel.type > 2) {
-      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
-      if (!(perms & (
-        ComputedPermissions.OWNER |
-        ComputedPermissions.ADMINISTRATOR |
-        ComputedPermissions.ADD_REACTIONS
-      ))) throw new ForbiddenException()
-      
-      if (!(perms & 
-        ComputedPermissions.OWNER |
-        ComputedPermissions.ADMINISTRATOR |
-        ComputedPermissions.ADD_EXTERNAL_REACTIONS) 
-        && !await this.emojiModel.exists({ id: emojiId, owner_id: channel.guild_id }
-      )) throw new ForbiddenException()
+      if (channel.type > 2) {
+        const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+        if (!(perms & (
+          ComputedPermissions.OWNER |
+          ComputedPermissions.ADMINISTRATOR |
+          ComputedPermissions.ADD_REACTIONS
+        ))) throw new ForbiddenException()
+        
+        if (!(perms & 
+          ComputedPermissions.OWNER |
+          ComputedPermissions.ADMINISTRATOR |
+          ComputedPermissions.ADD_EXTERNAL_REACTIONS) 
+          && !await this.emojiModel.exists({ id: emojiId, owner_id: channel.guild_id }
+        )) throw new ForbiddenException()
+      }
     }
 
     const message = await this.messageModel.findOne({ id: messageId, channel_id: channelId })
@@ -259,9 +267,11 @@ export class ChannelsService {
 
   async deleteReaction(channelId: string, messageId: string, emojiId: string, userId: string): Promise<void> {
     const channel = await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id').lean()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    }
 
     const message = await this.messageModel.findOne({ id: messageId, channel_id: channelId, 'reactions.emoji_id': emojiId })
     if (!message) throw new BadRequestException()
@@ -299,17 +309,19 @@ export class ChannelsService {
 
   async editMessage(channelId: string, messageId: string, messageDto: EditMessageDto, userId: string) {
     const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
-    if (!(perms & (
-        ComputedPermissions.OWNER |
-        ComputedPermissions.ADMINISTRATOR |
-        ComputedPermissions.WRITE_MESSAGES
-      ))
-    ) throw new ForbiddenException()
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+          ComputedPermissions.OWNER |
+          ComputedPermissions.ADMINISTRATOR |
+          ComputedPermissions.WRITE_MESSAGES
+        ))
+      ) throw new ForbiddenException()
+    }
 
     let changes: number = 0
 
@@ -331,15 +343,17 @@ export class ChannelsService {
         message.forwarded_ids = []
         message.forwarded_revs = []
         for (const msg of forwarded_messages) {
-          const perms2 = await this.parser.computePermissions(msg.guild_id, userId, msg.channel_id)
-          if (
-            msg.guild_id !== channel.guild_id &&
-            !(perms2 & 
-              ComputedPermissions.FORWARD_MESSAGES_FROM_SERVER |
-              ComputedPermissions.OWNER |
-              ComputedPermissions.ADMINISTRATOR
-            )
-          ) throw new BadRequestException()
+          if (msg.guild_id) {
+            const perms2 = await this.parser.computePermissions(msg.guild_id, userId, msg.channel_id)
+            if (
+              msg.guild_id !== channel.guild_id &&
+              !(perms2 & 
+                ComputedPermissions.FORWARD_MESSAGES_FROM_SERVER |
+                ComputedPermissions.OWNER |
+                ComputedPermissions.ADMINISTRATOR
+              )
+            ) throw new BadRequestException()
+          }
           message.forwarded_ids.push(msg.id)
           message.forwarded_revs.push(msg.edit_history?.length || 0)
           changes++
@@ -368,9 +382,11 @@ export class ChannelsService {
 
   async deleteMessage(channelId, messageId, userId): Promise<void> {
     const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    }
 
     const message = await this.messageModel.findOne({ id: messageId }, '-_id author')
 
@@ -425,9 +441,11 @@ export class ChannelsService {
 
   async deleteMessages(channelId: string, messageIds: string[], userId: string) {
     const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    }
 
     const messages = await this.messageModel.find({ id: messageIds, author: userId })
     if (messageIds.length === messages.length) {
@@ -435,7 +453,7 @@ export class ChannelsService {
         { id: messageIds, channel_id: channelId },
         { $set: { deleted: true } }
       )
-    } else {
+    } else if (channel.type === ChannelType.GUILD_TEXT || channel.type === ChannelType.GUILD_PUBLIC_THREAD) {
       const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
       if (!(perms & (
         ComputedPermissions.OWNER |
@@ -508,15 +526,17 @@ export class ChannelsService {
 
   async typing(channelId, userId) {
     const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
-    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
-    if (!(perms & (
-      ComputedPermissions.OWNER |
-      ComputedPermissions.ADMINISTRATOR |
-      ComputedPermissions.WRITE_MESSAGES
-    ))) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.WRITE_MESSAGES
+      ))) throw new ForbiddenException()
+    }
 
     const data = {
       event: 'channel.typing',
@@ -535,16 +555,18 @@ export class ChannelsService {
 
   async pinMessage(channelId, messageId, userId): Promise<void> {
     const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
-    if (!(perms & (
-      ComputedPermissions.OWNER |
-      ComputedPermissions.ADMINISTRATOR |
-      ComputedPermissions.MANAGE_MESSAGES
-    ))) throw new ForbiddenException()
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_MESSAGES
+      ))) throw new ForbiddenException()
+    }
     const msgChannelId = await this.messageModel.exists({ id: messageId, channel_id: channelId, type: { $lt: 3 } })
     if (!msgChannelId) throw new BadRequestException()
 
@@ -574,16 +596,18 @@ export class ChannelsService {
 
   async deletePinnedMessage(channelId, messageId, userId): Promise<void> {
     const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
-    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM)
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
       if (!channel.recipients.includes(userId)) throw new ForbiddenException()
-    if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
 
-    const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
-    if (!(perms & (
-      ComputedPermissions.OWNER |
-      ComputedPermissions.ADMINISTRATOR |
-      ComputedPermissions.MANAGE_MESSAGES
-    ))) throw new ForbiddenException()
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_MESSAGES
+      ))) throw new ForbiddenException()
+    }
 
     await this.channelModel.updateOne(
       { id: channelId },
@@ -607,6 +631,20 @@ export class ChannelsService {
   }
 
   async getPinnedMessages(channelId, userId) {
+    const channel = await (await this.channelModel.findOne({ id: channelId }, 'type recipients guild_id')).toObject()
+    if (channel.type === ChannelType.DM || channel.type === ChannelType.GROUP_DM) {
+      if (!channel.recipients.includes(userId)) throw new ForbiddenException()
+    } else {
+      if (!await this.guildService.isMember(channel.guild_id, userId)) throw new ForbiddenException()
+
+      const perms = await this.parser.computePermissions(channel.guild_id, userId, channelId)
+      if (!(perms & (
+        ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.READ_MESSAGES
+      ))) throw new ForbiddenException()
+    }
+
     const pinnedMessages = await (await this.channelModel.findOne({ id: channelId }, 'pinned_messages_ids')).toObject().pinned_messages_ids
     const messages = <MessageResponse[]> await this.getChannelMessages(channelId, { ids: pinnedMessages, count: pinnedMessages.length.toString() }, userId, false)
     const sortedMessages: MessageResponse[] = []
