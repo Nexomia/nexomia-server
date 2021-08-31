@@ -1,3 +1,4 @@
+import { FilesModule } from './api/files/files.module';
 import { WsModule } from './ws/ws.module';
 import { UsersService } from './api/users/users.service';
 import { AppGateway } from './ws/app.gateway';
@@ -22,6 +23,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     ChannelsModule,
     InvitesModule,
     WsModule,
+    FilesModule,
     EventEmitterModule.forRoot({
       wildcard: true,
       delimiter: '.',
