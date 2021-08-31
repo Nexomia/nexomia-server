@@ -3,7 +3,7 @@ import { UniqueID } from 'nodejs-snowflake';
 import { config } from './../../app.config';
 import { File, FileDocument, FileServer, FileType, AllowedFileExtensions, VK } from './schemas/file.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { Injectable, InternalServerErrorException, NotFoundException, PayloadTooLargeException, BadRequestException, ForbiddenException, MethodNotAllowedException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException, PayloadTooLargeException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import axios from 'axios';
 import * as fs from 'fs';
@@ -74,7 +74,11 @@ export class FilesService {
       (file.type === FileType.BANNER && !AllowedFileExtensions.BANNER.includes(multerFile.mimetype.split('/')[1]))
       ||
       (file.type === FileType.BACKGROUND && !AllowedFileExtensions.BACKGROUND.includes(multerFile.mimetype.split('/')[1]))
-    ) throw new BadRequestException(`${Object.keys(AllowedFileExtensions)[file.type - 2]} must be one of these exts: ${AllowedFileExtensions[Object.keys(AllowedFileExtensions)[file.type - 2]].join(', ')}`)
+    ) throw new BadRequestException(
+        Object.keys(AllowedFileExtensions)[file.type - 2] + 
+        ' must be with one of these extensions: ' +
+        AllowedFileExtensions[Object.keys(AllowedFileExtensions)[file.type - 2]].join(', ')
+      )
 
     const fileMime = multerFile.mimetype.split('/')[0]
     const newPath = fileMime === 'image'
@@ -85,11 +89,10 @@ export class FilesService {
     multerFile.path = newPath
   
     const token = config.vk.getRandomToken(config.vk.tokens)
-    const vkFile = (await this.uploadToServer(multerFile, (await this.getUploadServer(token)).upload_url, token, file.id)).doc
+    const vkFile = await this.uploadToServer(multerFile, (await this.getUploadServer(token)).upload_url, token, file.id)
     fs.unlinkSync(multerFile.path)
     if (!vkFile) throw new InternalServerErrorException()
-    
-    
+
     file.vk = new VK()
     if (vkFile.preview) {
       const vkImage = vkFile.preview.photo.sizes.find(size => size.type === 'o')
@@ -112,8 +115,9 @@ export class FilesService {
     if (file.file_server === FileServer.VK) {
       if (!config.production)
         extendedFile.url = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+
       if (file.vk.file_preview)
-      extendedFile.preview = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}/preview`
+        extendedFile.preview = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}/preview`
     }
 
     return FileResponseValidate(extendedFile)
@@ -130,7 +134,7 @@ export class FilesService {
     })).data
 
     if (uploaded.error) throw new BadRequestException(uploaded.error)
-    return await this.saveInServer(uploaded.file, token)
+    return (await this.saveInServer(uploaded.file, token)).doc
   }
   
   private async getUploadServer (token) {
