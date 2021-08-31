@@ -114,9 +114,7 @@ export class ChannelsService {
   if (!data.length && one) throw new NotFoundException()
   if (one && filters?.ids.length === 1) return this.messageParser(data[0])
   
-  const ready = data.map(msg => {
-    return this.messageParser(msg)
-  }).sort((a, b) => (a.created > b.created) ? 1 : -1)
+  const ready = data.map(this.messageParser).sort((a, b) => (a.created > b.created) ? 1 : -1)
 
   return ready
   }

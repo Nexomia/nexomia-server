@@ -1,3 +1,4 @@
+import { UserResponse, UserResponseValidate } from './../users/responses/user.response';
 import { RoleResponse, RoleResponseValidate } from './responses/role.response';
 import { GuildResponse, GuildResponseValidate } from './responses/guild.response';
 import { ChannelResponse, ChannelResponseValidate } from './../channels/responses/channel.response';
@@ -191,7 +192,7 @@ export class GuildsService {
   }
 
   async getChannels(guildId): Promise<ChannelResponse[]> {
-    return (await this.channelModel.find({ guild_id: guildId }).select('-_id')).map(channel => { return ChannelResponseValidate(channel) })
+    return (await this.channelModel.find({ guild_id: guildId }).select('-_id')).map(ChannelResponseValidate)
   }
 
   async getMembers(guildId, userId): Promise<ExtendedMember[]> {
@@ -215,22 +216,13 @@ export class GuildsService {
     {
       $project: {
         'members': 1,
-        'users.id': 1,
-        'users.username': 1,
-        'users.discriminator': 1,
-        'users.description': 1,
-        'users.status': 1,
-        'users.presence': 1,
-        'users.avatar': 1,
-        'users.banner': 1,
-        'users.premium_type': 1,
-        'users.public_flags': 1
+        'users': 1
       }
     }
     ]))[0]
     
     for (let member in guild.members) {
-      guild.members[member].user = guild.users[member]
+      guild.members[member].user = UserResponseValidate(guild.users[member])
       guild.members[member].user.connected = !!(await this.onlineManager.get(guild.members[member].id) && guild.users[member].presence !== 4)
     }
     return guild.members
@@ -255,11 +247,11 @@ export class GuildsService {
   }
 
   async getRoles(guildId: string): Promise<RoleResponse[]> {
-    return (await this.roleModel.find({ guild_id: guildId }).select('-_id').lean()).map(role => { return RoleResponseValidate(role) })
+    return (await this.roleModel.find({ guild_id: guildId })).map(RoleResponseValidate)
   }
 
   async getRole(guildId: string, roleId: string, userId): Promise<RoleResponse> {
-    const role = (await this.roleModel.findOne({ id: roleId, guild_id: guildId }).select('-_id')).toObject()
+    const role = (await this.roleModel.findOne({ id: roleId, guild_id: guildId })).toObject()
     return RoleResponseValidate(role)
   }
 
@@ -356,7 +348,7 @@ export class ExtendedGuild extends Guild {
 }
 
 export class ExtendedMember extends GuildMember {
-  user: User
+  user: UserResponse
   roles: string[]
   сonnected: boolean
 }

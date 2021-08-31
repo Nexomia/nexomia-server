@@ -9,7 +9,7 @@ const ChannelResponseSchema = myzod.object({
   recipients: myzod.array(myzod.unknown()).optional(),
   parent_id: myzod.string().optional(),
   position: myzod.number().optional(),
-  name: myzod.string(),
+  name: myzod.string().optional(),
   topic: myzod.string().optional(),
   icon: myzod.string().optional(),
   permission_overwrites: myzod.array(myzod.unknown()).optional(),

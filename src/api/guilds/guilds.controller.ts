@@ -32,7 +32,7 @@ export class GuildsController {
   }
 
   @Get(':guildId/channels')
-  async getChannels(@Param('guildId') guildId, @Body() user: AccessToken): Promise<ChannelResponse[]> {
+  async getChannels(@Param('guildId') guildId, @DUser() user: AccessToken): Promise<ChannelResponse[]> {
     if (!this.guildsService.isMember(guildId, user.id)) throw new ForbiddenException()
     return this.guildsService.getChannels(guildId)
   }
