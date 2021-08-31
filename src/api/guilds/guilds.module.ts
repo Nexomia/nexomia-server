@@ -1,3 +1,4 @@
+import { File, FileSchema } from './../files/schemas/file.schema';
 import { Role, RoleSchema } from './schemas/role.schema';
 import { User, UserSchema } from './../users/schemas/user.schema';
 import { Channel, ChannelSchema } from './../channels/schemas/channel.schema';
@@ -21,6 +22,7 @@ import { Parser } from 'src/utils/parser/parser.utils';
       { name: User.name, schema: UserSchema },
       { name: Role.name, schema: RoleSchema },
       { name: Invite.name, schema: InviteSchema },
+      { name: File.name, schema: FileSchema },
     ]),
   ],
   exports: [GuildsService, MongooseModule],

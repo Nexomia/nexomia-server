@@ -1,3 +1,4 @@
+import { FileType } from './../files/schemas/file.schema';
 import { UserResponse, UserResponseValidate } from './../users/responses/user.response';
 import { RoleResponse, RoleResponseValidate } from './responses/role.response';
 import { GuildResponse, GuildResponseValidate } from './responses/guild.response';
@@ -19,6 +20,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { UniqueID } from 'nodejs-snowflake';
 import { Cache } from 'cache-manager';
+import { File, FileDocument } from '../files/schemas/file.schema';
 
 @Injectable()
 export class GuildsService {
@@ -28,6 +30,7 @@ export class GuildsService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    @InjectModel(File.name) private fileModel: Model<FileDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
   ) {}
@@ -118,7 +121,7 @@ export class GuildsService {
     // Тут надо будет дописать доп функционал для создания  сервера с канлами, ролями, кароч что-то ака шаблонов
   }
 
-  async patchGuild(guildId: string, patchGuildDto: PatchGuildDto): Promise<GuildResponse> {
+  async patchGuild(guildId: string, patchGuildDto: PatchGuildDto, userId): Promise<GuildResponse> {
     const guild = await this.guildModel.findOne({ id: guildId })
     if (patchGuildDto.name && patchGuildDto.name !== guild.name)
       guild.name = patchGuildDto.name
@@ -132,10 +135,22 @@ export class GuildsService {
       if (await this.channelModel.exists({ guild_id: guild.id, id: patchGuildDto.default_channel }))
         guild.default_channel = patchGuildDto.default_channel
     }
-    if (patchGuildDto.icon && patchGuildDto.icon !== guild.icon) //will change later
-      guild.icon = patchGuildDto.icon
-    if (patchGuildDto.banner && patchGuildDto.banner !== guild.banner) //will change later
-      guild.banner = patchGuildDto.banner
+    if (patchGuildDto.icon && patchGuildDto.icon !== guild.icon) {
+      if (patchGuildDto.icon === '0') guild.icon = ''
+      else {
+        const file = (await this.fileModel.findOne({ id: patchGuildDto.icon, type: FileType.AVATAR, owner_id: userId })).toObject()
+        if (!file) throw new BadRequestException()
+        guild.icon = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+      }
+    }
+    if (patchGuildDto.banner && patchGuildDto.banner !== guild.banner) {
+      if (patchGuildDto.banner === '0') guild.banner = ''
+      else { 
+        const file = await this.fileModel.findOne({ id: patchGuildDto.banner, type: FileType.BANNER, owner_id: userId })
+        if (!file) throw new BadRequestException()
+        guild.banner = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+      }
+    }
     if (patchGuildDto.preferred_locale && patchGuildDto.preferred_locale !== guild.preferred_locale) //will change later
       guild.preferred_locale = patchGuildDto.preferred_locale
     await guild.save()
@@ -339,7 +354,15 @@ export class GuildsService {
   async isMember(guildId: string, userId: string) {
     return await this.guildModel.exists({ id: guildId, 'members.id': userId })
   }
+
+  private fixedEncodeURIComponent (str) {
+    return encodeURIComponent(str)
+      .replace(/['()]/g, escape)
+      .replace(/\*/g, '%2A')
+      .replace(/%(?:7C|60|5E)/g, unescape)
+  }
 }
+
 
 export class ExtendedGuild extends Guild {
   users: User[]

@@ -114,7 +114,7 @@ export class GuildsController {
       ComputedPermissions.ADMINISTRATOR |
       ComputedPermissions.MANAGE_GUILD
       )
-    ) return await this.guildsService.patchGuild(params.guildId, patchGuildDto)
+    ) return await this.guildsService.patchGuild(params.guildId, patchGuildDto, user.id)
     else throw new ForbiddenException()
   }
 }

@@ -9,6 +9,7 @@ import { UsersService } from './users.service';
 import { CacheModule, Module } from "@nestjs/common";
 import { MongooseModule } from '@nestjs/mongoose';
 import { Channel, ChannelSchema } from '../channels/schemas/channel.schema';
+import { File, FileSchema } from '../files/schemas/file.schema';
 
 @Module({
   imports: [
@@ -21,7 +22,8 @@ import { Channel, ChannelSchema } from '../channels/schemas/channel.schema';
       { name: User.name, schema: UserSchema },
       { name: Guild.name, schema: GuildSchema },
       { name: Channel.name, schema: ChannelSchema },
-      { name: Role.name, schema: RoleSchema }
+      { name: Role.name, schema: RoleSchema },
+      { name: File.name, schema: FileSchema },
     ]),
   ],
   exports: [UsersService, MongooseModule],

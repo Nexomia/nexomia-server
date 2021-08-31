@@ -1,3 +1,4 @@
+import { File, FileDocument, FileType } from './../files/schemas/file.schema';
 import { SaltService } from './../../utils/salt/salt.service';
 import { ChannelResponse, ChannelResponseValidate } from './../channels/responses/channel.response';
 import { GuildsService } from './../guilds/guilds.service';
@@ -26,6 +27,7 @@ export class UsersService {
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
+    @InjectModel(File.name) private fileModel: Model<FileDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
     private channelsService: ChannelsService,
@@ -76,6 +78,26 @@ export class UsersService {
       if (!pass) throw new BadRequestException()
       user.password = this.saltService.password(modifyData.new_password)
       user.tokens = []
+      changes++
+    }
+
+    if (modifyData.avatar && modifyData.avatar !== user.avatar) {
+      if (modifyData.avatar === '0') user.avatar = ''
+      else {
+        const file = (await this.fileModel.findOne({ id: modifyData.avatar, type: FileType.AVATAR, owner_id: userId }))
+        if (!file) throw new BadRequestException()
+        user.avatar = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+      }
+      changes++
+    }
+
+    if (modifyData.banner && modifyData.banner !== user.banner) {
+      if (modifyData.banner === '0') user.banner = ''
+      else { 
+        const file = await this.fileModel.findOne({ id: modifyData.banner, type: FileType.BANNER, owner_id: userId })
+        if (!file) throw new BadRequestException()
+        user.banner = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+      }
       changes++
     }
 
@@ -169,7 +191,7 @@ export class UsersService {
   }
 
   async getChannels(userId): Promise<ChannelResponse[]> {
-    return (await this.channelModel.find({ 'recipients': { $in: userId } }).select('-_id').lean()).map(channel => { return ChannelResponseValidate(channel) })
+    return (await this.channelModel.find({ 'recipients': { $in: userId } })).map(ChannelResponseValidate)
   }
 
   async createChannel(userId, channelData): Promise<ChannelResponse> {
@@ -200,6 +222,13 @@ export class UsersService {
     )
 
     return cleanedChannel
+  }
+
+  private fixedEncodeURIComponent (str) {
+    return encodeURIComponent(str)
+      .replace(/['()]/g, escape)
+      .replace(/\*/g, '%2A')
+      .replace(/%(?:7C|60|5E)/g, unescape)
   }
 }
   
