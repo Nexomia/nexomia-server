@@ -222,7 +222,7 @@ export class UsersService {
       }
     }
 
-    if (!goodRecipients.length || (channel.type === ChannelType.GROUP_DM && goodRecipients.length < 3)) 
+    if (!goodRecipients.length || (channel.type === ChannelType.GROUP_DM && goodRecipients.length < 2)) 
       throw new BadRequestException()
 
     channel.recipients = goodRecipients
