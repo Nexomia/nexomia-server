@@ -1,3 +1,4 @@
+import { CreateUserChannelDto } from './dto/create-user-channel.dto';
 import { File, FileDocument, FileType } from './../files/schemas/file.schema';
 import { SaltService } from './../../utils/salt/salt.service';
 import { ChannelResponse, ChannelResponseValidate } from './../channels/responses/channel.response';
@@ -11,7 +12,7 @@ import { config } from './../../app.config';
 import { GuildDocument } from './../guilds/schemas/guild.schema';
 import { ModifyUserDto } from './dto/modify-user.dto';
 import { Model } from 'mongoose';
-import { Injectable, NotFoundException, CACHE_MANAGER, Inject, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, CACHE_MANAGER, Inject, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import { Channel, ChannelDocument } from '../channels/schemas/channel.schema';
@@ -194,12 +195,35 @@ export class UsersService {
     return (await this.channelModel.find({ 'recipients': { $in: userId } })).map(ChannelResponseValidate)
   }
 
-  async createChannel(userId, channelData): Promise<ChannelResponse> {
+  async createChannel(userId, channelData: CreateUserChannelDto): Promise<ChannelResponse> {
+    const recipients = [  ...new Set(channelData.recipient_ids) ]
+    if (recipients.length !== 1 && recipients.length < 2) throw new BadRequestException()
     const channel = new this.channelModel()
     channel.id = new UniqueID(config.snowflake).getUniqueID()
     channel.owner_id = userId
-    channel.type = ChannelType.DM
-    channel.recipients.push(userId, channelData.recipernt_id)
+    channel.type = recipients.length === 1 ? ChannelType.DM : ChannelType.GROUP_DM
+
+    if (
+      channel.type === ChannelType.DM
+      &&
+      await this.channelModel.exists({ type: ChannelType.DM, recipients: recipients[0] })
+    ) throw new ConflictException()
+    
+    const user_servers = await this.getUserServers(userId)
+    let goodRecipients: string[] = []
+    for (const recipient of recipients) {
+      const recipient_servers = await this.getUserServers(recipient, true)
+      const mutual = user_servers.filter((id) => recipient_servers.includes(id))
+      if (mutual.length) {
+        goodRecipients.push(recipient)
+      }
+    }
+
+    if (!goodRecipients.length || (channel.type === ChannelType.GROUP_DM && goodRecipients.length < 3)) 
+      throw new BadRequestException()
+
+    channel.recipients = goodRecipients
+    channel.recipients.unshift(userId)
     await channel.save()
     const cleanedChannel = ChannelResponseValidate(channel.toObject())
 
@@ -230,5 +254,16 @@ export class UsersService {
       .replace(/\*/g, '%2A')
       .replace(/%(?:7C|60|5E)/g, unescape)
   }
+
+  private async getUserServers(userId, allowDms?) {
+    let array: string[] = []
+    const servers = (await this.guildModel.find({ 'members.id': userId }, 'id members.$')).map(server => 
+      allowDms ? 
+        server.members[0].allow_dms ?
+          array.push(server.id) :
+          false :
+        array.push(server.id)
+    )
+    return array
+  }
 }
-  

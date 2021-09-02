@@ -182,6 +182,7 @@ export class GuildMember {
   joined_at: number;
   mute: boolean;
   deaf: boolean;
+  allow_dms: boolean;
   permissions?: Permissions;
 }
 

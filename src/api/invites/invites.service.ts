@@ -131,6 +131,7 @@ export class InvitesService {
       joined_at: Date.now(),
       mute: false,
       deaf: false,
+      allow_dms: true,
       permissions: {
         allow: 0,
         deny: 0
