@@ -203,6 +203,9 @@ export class UsersService {
     channel.owner_id = userId
     channel.type = recipients.length === 1 ? ChannelType.DM : ChannelType.GROUP_DM
 
+    if (channelData.name && channel.type === ChannelType.GROUP_DM)
+      channel.name = channelData.name
+
     if (
       channel.type === ChannelType.DM
       &&
