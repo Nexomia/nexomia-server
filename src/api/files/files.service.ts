@@ -6,8 +6,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Injectable, InternalServerErrorException, NotFoundException, PayloadTooLargeException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import axios from 'axios';
-import * as fs from 'fs';
-import * as FormData from 'form-data'
+import fs from 'promise-fs';
+import * as FormData from 'form-data';
 
 @Injectable()
 export class FilesService {
@@ -85,12 +85,12 @@ export class FilesService {
       ? `${multerFile.path}_${multerFile.originalname}`
       : `${multerFile.path}.nexo`
 
-    fs.renameSync(multerFile.path, newPath)
+    await fs.rename(multerFile.path, newPath)
     multerFile.path = newPath
   
     const token = config.vk.getRandomToken(config.vk.tokens)
     const vkFile = await this.uploadToServer(multerFile, (await this.getUploadServer(token)).upload_url, token, file.id)
-    fs.unlinkSync(multerFile.path)
+    await fs.unlink(multerFile.path)
     if (!vkFile) throw new InternalServerErrorException()
 
     file.vk = new VK()
