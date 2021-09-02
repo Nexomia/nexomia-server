@@ -11,7 +11,7 @@ import { MulterModule } from '@nestjs/platform-express';
       { name: File.name, schema: FileSchema },
     ]),
     MulterModule.register({
-      dest: '../upload',
+      dest: './upload',
     }),
   ],
   controllers: [FilesController],
