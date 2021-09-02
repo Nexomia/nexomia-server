@@ -1,3 +1,4 @@
+import { User } from './../../users/schemas/user.schema';
 import { Guild } from 'src/api/guilds/schemas/guild.schema';
 import myzod, { Infer } from 'myzod';
 
@@ -25,3 +26,14 @@ const GuildResponseSchema = myzod.object({
 export type GuildResponse = Infer<typeof GuildResponseSchema>;
 
 export const GuildResponseValidate = (guild: Guild) => { return<GuildResponse> GuildResponseSchema.allowUnknownKeys().parse(guild) }
+
+const MemberUserResponseSchema = myzod.object({
+  id: myzod.string(),
+  username: myzod.string(),
+  discriminator: myzod.string(),
+  avatar: myzod.string().optional(),
+})
+
+export type MemberResponse = Infer<typeof MemberUserResponseSchema>;
+
+export const MemberUserResponseValidate = (user: User) => { return<MemberResponse> MemberUserResponseSchema.allowUnknownKeys().parse(user) }

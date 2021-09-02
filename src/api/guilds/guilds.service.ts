@@ -1,7 +1,7 @@
 import { FileType } from './../files/schemas/file.schema';
 import { UserResponse, UserResponseValidate } from './../users/responses/user.response';
 import { RoleResponse, RoleResponseValidate } from './responses/role.response';
-import { GuildResponse, GuildResponseValidate } from './responses/guild.response';
+import { GuildResponse, GuildResponseValidate, MemberUserResponseValidate } from './responses/guild.response';
 import { ChannelResponse, ChannelResponseValidate } from './../channels/responses/channel.response';
 import { UserDocument } from './../users/schemas/user.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -238,28 +238,21 @@ export class GuildsService {
     ]))[0]
     
     for (let member in guild.members) {
-      guild.members[member].user = UserResponseValidate(guild.users[member])
+      guild.members[member].user = MemberUserResponseValidate(guild.users[member])
       guild.members[member].user.connected = !!(await this.onlineManager.get(guild.members[member].id) && guild.users[member].presence !== 4)
     }
     return guild.members
   }
 
   async getMember(guildId, userId): Promise<ExtendedMember> {
-    let member =  (await this.guildModel.findOne({ id: guildId, 'members.id': userId }, 'members.$')).members[0]
+    let member =  <ExtendedMember>(await this.guildModel.findOne({ id: guildId, 'members.id': userId }, 'members.$')).members[0]
     const user = (await this.userModel.findOne({ id: userId }).select('-_id id username discriminator avatar banner description status presence premium_type public_flags')).toObject()
     let roles: string[] = []
-    const rolesArray = (await this.roleModel.find({ guild_id: guildId, members: { $in: userId } }, 'id')).forEach(role => roles.push(role.id))
-    const extendedMember = new ExtendedMember()
-    extendedMember.id = member.id
-    extendedMember.joined_at = member.joined_at
-    extendedMember.nickname = member.nickname
-    extendedMember.permissions = member.permissions
-    extendedMember.mute = member.mute
-    extendedMember.deaf = member.deaf
-    extendedMember.user = user
-    extendedMember.roles = roles
-    extendedMember.user.connected = !!(await this.onlineManager.get(user.id) && user.presence !== 4)
-    return extendedMember
+    //const rolesArray = (await this.roleModel.find({ guild_id: guildId, members: { $in: userId } }, 'id')).forEach(role => roles.push(role.id))
+    member.user = MemberUserResponseValidate(user)
+    //member.roles = roles
+    member.user.connected = !!(await this.onlineManager.get(user.id) && user.presence !== 4)
+    return member
   }
 
   async getRoles(guildId: string): Promise<RoleResponse[]> {
