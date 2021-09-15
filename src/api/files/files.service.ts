@@ -138,7 +138,7 @@ export class FilesService {
   }
   
   private async getUploadServer (token) {
-    return (await axios.get(`https://api.vk.com/method/docs.getUploadServer?group_id=186731000&access_token=${token}&v=5.154`)).data.response
+    return (await axios.get(`https://api.vk.com/method/docs.getUploadServer?group_id=207174644&access_token=${token}&v=5.154`)).data.response
   }
   
   private async saveInServer (file, token) {
