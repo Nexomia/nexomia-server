@@ -164,6 +164,7 @@ export class ChannelsService {
       message.content = messageDto?.content
  
     let forwarded_messages: Message[]
+    let forwarded_messages_users_ids: string[] = []
     if (messageDto.forwarded_messages) {
       forwarded_messages = await this.messageModel.aggregate([
         { $match: { id: { $in: messageDto.forwarded_messages }, allow_forwarding: true, deleted: false } },
@@ -184,6 +185,7 @@ export class ChannelsService {
           }
           message.forwarded_ids.push(msg.id)
           message.forwarded_revs.push(msg.edit_history?.length || 0)
+          forwarded_messages_users_ids.push(msg.author)
         }
       }
     }
@@ -192,7 +194,8 @@ export class ChannelsService {
     const message2 = <AgreggatedMessage>Object.assign(message.toObject(),
       {
         forwarded_compiled: forwarded_messages,
-        userObject: (await this.userModel.findOne({ id: userId })).toObject()
+        userObject: (await this.userModel.findOne({ id: userId })).toObject(),
+        forwarded_compiled_users: (await this.userModel.find({ id: forwarded_messages_users_ids }))
       }
     )
     const cleanedMessage = this.messageParser(message2)
@@ -688,7 +691,7 @@ class AgreggatedMessage extends Message {
   forwarded_messages: MessageResponse[]
   user: UserResponse
   userObject: User
-  forwarded_compiled_users: User[]
+  forwarded_compiled_users: UserDocument[]
 }
 
 class extMessage extends Message {
