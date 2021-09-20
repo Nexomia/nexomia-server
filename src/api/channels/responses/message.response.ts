@@ -1,5 +1,6 @@
+import { FileDocument } from './../../files/schemas/file.schema';
 import { User } from 'src/api/users/schemas/user.schema';
-import { Message } from './../schemas/message.schema';
+import { Message, Attachment } from './../schemas/message.schema';
 import myzod, { Infer } from 'myzod';
 
 const MessageResponseSchema = myzod.object({
@@ -23,7 +24,7 @@ const MessageResponseSchema = myzod.object({
   forwarded_messages: myzod.array(myzod.unknown()).optional(),
 });
 
-export type MessageResponse = Infer<typeof MessageResponseSchema>;
+export type MessageResponse = Infer<typeof MessageResponseSchema>
 export const MessageResponseValidate = (message: Message) => { return<MessageResponse> MessageResponseSchema.allowUnknownKeys().parse(message) }
 
 const MessageUserSchema = myzod.object({
@@ -33,5 +34,19 @@ const MessageUserSchema = myzod.object({
   avatar: myzod.string().optional()
 })
 
-export type MessageUser = Infer<typeof MessageUserSchema>;
+export type MessageUser = Infer<typeof MessageUserSchema>
 export const MessageUserValidate = (user: User) => { return<MessageUser> MessageUserSchema.allowUnknownKeys().parse(user) }
+
+const MessageAttachmentSchema = myzod.object({
+  id: myzod.string(),
+  name: myzod.string(),
+  mime_type: myzod.string(),
+  size: myzod.number(),
+  url: myzod.string(),
+  preview: myzod.string().optional(),
+  width: myzod.number().optional(),
+  height: myzod.number().optional(),
+})
+
+export type MessageAttachment = Infer<typeof MessageAttachmentSchema>
+export const MessageAttachmentValidate = (att: FileDocument) => { return<MessageAttachment> MessageAttachmentSchema.allowUnknownKeys().parse(att) }

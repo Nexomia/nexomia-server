@@ -101,4 +101,11 @@ export class Parser {
       return permissions
     }
   }
+
+  encodeURI(text) {
+    return encodeURIComponent(text)
+      .replace(/['()]/g, escape)
+      .replace(/\*/g, '%2A')
+      .replace(/%(?:7C|60|5E)/g, unescape)
+    }
 }

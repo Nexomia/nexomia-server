@@ -54,6 +54,8 @@ export class File {
 
   url: string;
   preview: string;
+  width: number;
+  height: number;
 
 }
 

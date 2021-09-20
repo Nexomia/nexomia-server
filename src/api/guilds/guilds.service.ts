@@ -315,6 +315,7 @@ export class GuildsService {
     if (patchRoleDto.permissions) {
       role.permissions.allow = patchRoleDto.permissions.allow &= ~(patchRoleDto.permissions.deny | ComputedPermissions.OWNER)
       role.permissions.deny = patchRoleDto.permissions.deny
+      role.markModified('permissions')
     }
     if (patchRoleDto.position && !role.default && patchRoleDto.position !== role.position) {
       if (patchRoleDto.position < role.position)
@@ -329,7 +330,6 @@ export class GuildsService {
         )
       role.position = patchRoleDto.position
     }
-    role.markModified('permissions')
     await role.save()
     const cleanedRole = RoleResponseValidate(role.toObject())
 

@@ -70,7 +70,7 @@ export class Message {
    * Any attached files
    */
   @Prop()
-  attachments?: Attachment[] | null;
+  attachment_ids?: string[];
 
   /**
    * Ids of resent messages
@@ -120,6 +120,11 @@ export class Message {
    */
   @Prop()
   embeds?: Embed[] | null;
+
+  /**
+   * Any attached files
+   */
+  attachments?: Attachment[] | null;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
@@ -385,33 +390,33 @@ export class Attachment {
   /**
    * Attachment id
    */
-   id: string;
+  id?: string;
 
   /**
    * Name of file attached
    */
-   filename: string;
+  name?: string;
 
   /**
    * The attachment's media type
    * https://en.wikipedia.org/wiki/Media_type
    */
-   content_type?: string;
+  mime_type?: string;
 
   /**
    * Size of file in bytes
    */
-  size: number;
+  size?: number;
 
   /**
    * Source url of file
    */
-  url: string;
+  url?: string;
   
   /**
-   * A proxied url of file
+   * Preview of file (if image)
    */
-  proxy_url: string;
+  preview?: string;
 
   /**
    * Height of file (if image)
@@ -421,7 +426,7 @@ export class Attachment {
   /**
    * Width of file (if image)
    */
-   width?: number;
+  width?: number;
 }
 
 class Reaction {

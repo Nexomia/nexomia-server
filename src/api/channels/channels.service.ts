@@ -1,9 +1,10 @@
+import { FileType, FileServer } from './../files/schemas/file.schema';
 import { User, UserDocument } from './../users/schemas/user.schema';
 import { UserResponse } from './../users/responses/user.response';
 import { EditMessageDto } from './dto/edit-message.dto';
 import { ChannelResponse, ChannelResponseValidate } from './responses/channel.response';
 import { GetChannelMessagesDto } from './dto/get-channel-messages.dto';
-import { MessageResponse, MessageResponseValidate, MessageUserValidate } from './responses/message.response';
+import { MessageResponse, MessageResponseValidate, MessageUserValidate, MessageAttachmentValidate } from './responses/message.response';
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema';
 import { ComputedPermissions } from './../guilds/schemas/role.schema';
 import { Parser } from 'src/utils/parser/parser.utils';
@@ -20,6 +21,7 @@ import { Model } from 'mongoose';
 import { UniqueID } from 'nodejs-snowflake';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cache } from 'cache-manager';
+import { File, FileDocument } from '../files/schemas/file.schema';
 
 @Injectable()
 export class ChannelsService {
@@ -29,6 +31,7 @@ export class ChannelsService {
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
     @InjectModel(Emoji.name) private emojiModel: Model<EmojiDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(File.name) private fileModel: Model<FileDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private guildService: GuildsService,
     private parser: Parser,
@@ -84,6 +87,14 @@ export class ChannelsService {
     },
     { 
       $lookup: {
+        from: "files",
+        localField: "attachment_ids",
+        foreignField: "id",
+        as: "attachments_compiled"
+      },
+    },
+    { 
+      $lookup: {
         from: "users",   
         localField: "author",
         foreignField: "id",
@@ -111,12 +122,12 @@ export class ChannelsService {
         foreignField: "id",
         as: "forwarded_compiled_users"
       },
-    }
+    },
   ])
   if (!data.length && one) throw new NotFoundException()
-  if (one && filters?.ids.length === 1) return this.messageParser(data[0])
+  if (one && filters?.ids.length === 1) return this.parseMessage(data[0])
   
-  const ready = data.map(this.messageParser).sort((a, b) => (a.created > b.created) ? 1 : -1)
+  const ready = data.map(this.parseMessage).sort((a, b) => (a.created > b.created) ? 1 : -1)
 
   return ready
   }
@@ -165,6 +176,7 @@ export class ChannelsService {
  
     let forwarded_messages: Message[]
     let forwarded_messages_users_ids: string[] = []
+    let forwarded_messages_attachment_ids: string[] = []
     if (messageDto.forwarded_messages) {
       forwarded_messages = await this.messageModel.aggregate([
         { $match: { id: { $in: messageDto.forwarded_messages }, allow_forwarding: true, deleted: false } },
@@ -186,19 +198,31 @@ export class ChannelsService {
           message.forwarded_ids.push(msg.id)
           message.forwarded_revs.push(msg.edit_history?.length || 0)
           forwarded_messages_users_ids.push(msg.author)
+          forwarded_messages_attachment_ids = forwarded_messages_attachment_ids.concat(msg.attachment_ids)
         }
       }
     }
-    // if (messageDto.attachments)
+    let attachments: FileDocument[]
+    if (messageDto.attachments) {
+      attachments = await this.fileModel.find({ id: messageDto.attachments, type: FileType.ATTACHMENT, owner_id: userId })
+      for (const att of attachments)
+        message.attachment_ids.push(att.id)
+    }
+    let forwarded_compiled_attachments: FileDocument[] = []
+    if (forwarded_messages_attachment_ids.length)
+    forwarded_compiled_attachments = await this.fileModel.find({ id: forwarded_messages_attachment_ids })
     await message.save()
     const message2 = <AgreggatedMessage>Object.assign(message.toObject(),
       {
         forwarded_compiled: forwarded_messages,
         userObject: (await this.userModel.findOne({ id: userId })).toObject(),
-        forwarded_compiled_users: (await this.userModel.find({ id: forwarded_messages_users_ids }))
+        forwarded_compiled_users: (await this.userModel.find({ id: forwarded_messages_users_ids })),
+        forwarded_compiled_attachments,
+        attachments_compiled: attachments
+
       }
     )
-    const cleanedMessage = this.messageParser(message2)
+    const cleanedMessage = this.parseMessage(message2)
     const data = {
       event: 'message.created',
       data: cleanedMessage
@@ -370,7 +394,7 @@ export class ChannelsService {
       message.edit_history.push(cachedMessage)
       await message.save()
       const message2 = <AgreggatedMessage>Object.assign(message.toObject(), { forwarded_compiled: forwarded_messages })
-      const cleanedMessage = this.messageParser(message2)
+      const cleanedMessage = this.parseMessage(message2)
       const data = {
         event: 'message.edited',
         data: cleanedMessage
@@ -669,15 +693,53 @@ export class ChannelsService {
     return code
   }
 
-  private messageParser(message: AgreggatedMessage) {
+  private parseMessage = (message: AgreggatedMessage) => {
     message.user = MessageUserValidate(message.userObject)
     message.forwarded_messages = []
     if (message.forwarded_ids.length) {
-     for (const i in message.forwarded_compiled) {
-      message.forwarded_compiled[i] = <extMessage> message.forwarded_compiled[i].edit_history[message.forwarded_revs[i]] || message.forwarded_compiled[i]
-      message.forwarded_compiled[i].user = MessageUserValidate(message.forwarded_compiled_users[message.forwarded_compiled_users.findIndex(user => user.id === message.forwarded_compiled[i].author)])
-      message.forwarded_messages.push(MessageResponseValidate(message.forwarded_compiled[i]))
-     }
+      for (const i in message.forwarded_compiled) {
+        message.forwarded_compiled[i] = <extMessage> message.forwarded_compiled[i].edit_history[message.forwarded_revs[i]] || message.forwarded_compiled[i]
+        message.forwarded_compiled[i].user = MessageUserValidate(message.forwarded_compiled_users[message.forwarded_compiled_users.findIndex(user => user.id === message.forwarded_compiled[i].author)])
+
+        message.forwarded_compiled[i].attachments = []
+        if (message.forwarded_compiled[i].attachment_ids.length) {
+          for (const i in message.attachments_compiled) {
+            const index = message.forwarded_compiled_attachments.findIndex(att => att.id === message.attachments_compiled[i].id)
+            if (message.forwarded_compiled_attachments[index].mime_type.startsWith('image')) {
+              message.forwarded_compiled_attachments[index].width = message.forwarded_compiled_attachments[index].vk.file_width
+              message.forwarded_compiled_attachments[index].height = message.forwarded_compiled_attachments[index].vk.file_heigth
+              message.forwarded_compiled_attachments[index].preview = message.forwarded_compiled_attachments[index].preview
+            }
+            if (message.forwarded_compiled_attachments[index].file_server === FileServer.VK) {
+              if (!config.production)
+              message.forwarded_compiled_attachments[index].url = `http://${config.domain}/api/files/${message.forwarded_compiled_attachments[index].id}/${this.parser.encodeURI(message.forwarded_compiled_attachments[index].name)}`
+
+              if (message.forwarded_compiled_attachments[index].vk.file_preview)
+              message.forwarded_compiled_attachments[index].preview = `http://${config.domain}/api/files/${message.forwarded_compiled_attachments[index].id}/${this.parser.encodeURI(message.forwarded_compiled_attachments[index].name)}/preview`
+            }
+            message.forwarded_compiled[i].attachments.push(MessageAttachmentValidate(message.forwarded_compiled_attachments[index]))
+          }
+        }
+
+        message.forwarded_messages.push(MessageResponseValidate(message.forwarded_compiled[i]))
+      }
+    }
+    message.attachments = []
+    if (message.attachment_ids.length) {
+      for (const att of message.attachments_compiled) {
+        if (att.mime_type.startsWith('image')) {
+          att.width = att.vk.file_width
+          att.height = att.vk.file_heigth
+          att.preview = att.preview
+        }
+        if (att.file_server === FileServer.VK) {
+            att.url = `http://${config.domain}/api/files/${att.id}/${this.parser.encodeURI(att.name)}`
+    
+          if (att.vk.file_preview)
+            att.preview = `http://${config.domain}/api/files/${att.id}/${this.parser.encodeURI(att.name)}/preview`
+        }
+        message.attachments.push(MessageAttachmentValidate(att))
+      }
     }
     return MessageResponseValidate(message)
   }
@@ -685,6 +747,7 @@ export class ChannelsService {
   async isMember(channelId, userId) {
     return await this.channelModel.exists({ id: channelId, recipients: userId })
   }
+
 }
 class AgreggatedMessage extends Message {
   forwarded_compiled: extMessage[]
@@ -692,6 +755,8 @@ class AgreggatedMessage extends Message {
   user: UserResponse
   userObject: User
   forwarded_compiled_users: UserDocument[]
+  attachments_compiled: FileDocument[]
+  forwarded_compiled_attachments: FileDocument[]
 }
 
 class extMessage extends Message {
