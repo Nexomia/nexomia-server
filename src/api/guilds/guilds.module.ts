@@ -1,3 +1,4 @@
+import { FilesModule } from './../files/files.module';
 import { File, FileSchema } from './../files/schemas/file.schema';
 import { Role, RoleSchema } from './schemas/role.schema';
 import { User, UserSchema } from './../users/schemas/user.schema';
@@ -13,6 +14,7 @@ import { Parser } from 'src/utils/parser/parser.utils';
 
 @Module({
   imports:[
+    FilesModule,
     CacheModule.register({
       ttl: 60 * 60 * 24 * 365,
     }),

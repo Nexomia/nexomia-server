@@ -705,17 +705,8 @@ export class ChannelsService {
         if (message.forwarded_compiled[i].attachment_ids.length) {
           for (const i in message.attachments_compiled) {
             const index = message.forwarded_compiled_attachments.findIndex(att => att.id === message.attachments_compiled[i].id)
-            if (message.forwarded_compiled_attachments[index].mime_type.startsWith('image')) {
-              message.forwarded_compiled_attachments[index].width = message.forwarded_compiled_attachments[index].vk.file_width
-              message.forwarded_compiled_attachments[index].height = message.forwarded_compiled_attachments[index].vk.file_heigth
-              message.forwarded_compiled_attachments[index].preview = message.forwarded_compiled_attachments[index].preview
-            }
-            if (message.forwarded_compiled_attachments[index].file_server === FileServer.VK) {
-              if (!config.production)
-              message.forwarded_compiled_attachments[index].url = `http://${config.domain}/api/files/${message.forwarded_compiled_attachments[index].id}/${this.parser.encodeURI(message.forwarded_compiled_attachments[index].name)}`
-
-              if (message.forwarded_compiled_attachments[index].vk.file_preview)
-              message.forwarded_compiled_attachments[index].preview = `http://${config.domain}/api/files/${message.forwarded_compiled_attachments[index].id}/${this.parser.encodeURI(message.forwarded_compiled_attachments[index].name)}/preview`
+            if (message.forwarded_compiled_attachments[index].file_server === FileServer.SELECTEL) {
+                message.forwarded_compiled_attachments[index].url = `https://cdn.nx.wtf/${message.forwarded_compiled_attachments[index].id}/${this.parser.encodeURI(message.forwarded_compiled_attachments[index].name)}`
             }
             message.forwarded_compiled[i].attachments.push(MessageAttachmentValidate(message.forwarded_compiled_attachments[index]))
           }
@@ -727,16 +718,8 @@ export class ChannelsService {
     message.attachments = []
     if (message.attachment_ids.length) {
       for (const att of message.attachments_compiled) {
-        if (att.mime_type.startsWith('image')) {
-          att.width = att.vk.file_width
-          att.height = att.vk.file_heigth
-          att.preview = att.preview
-        }
-        if (att.file_server === FileServer.VK) {
-            att.url = `http://${config.domain}/api/files/${att.id}/${this.parser.encodeURI(att.name)}`
-    
-          if (att.vk.file_preview)
-            att.preview = `http://${config.domain}/api/files/${att.id}/${this.parser.encodeURI(att.name)}/preview`
+        if (att.file_server === FileServer.SELECTEL) {
+          att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(att.name)}`
         }
         message.attachments.push(MessageAttachmentValidate(att))
       }

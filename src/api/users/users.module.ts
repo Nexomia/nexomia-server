@@ -1,3 +1,4 @@
+import { FilesModule } from './../files/files.module';
 import { SaltService } from './../../utils/salt/salt.service';
 import { GuildsModule } from './../guilds/guilds.module';
 import { ChannelsModule } from './../channels/channels.module';
@@ -13,6 +14,7 @@ import { File, FileSchema } from '../files/schemas/file.schema';
 
 @Module({
   imports: [
+    FilesModule,
     ChannelsModule,
     GuildsModule,
     CacheModule.register({

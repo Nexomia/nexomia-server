@@ -1,3 +1,4 @@
+import { FilesService } from './../files/files.service';
 import { CreateUserChannelDto } from './dto/create-user-channel.dto';
 import { File, FileDocument, FileType } from './../files/schemas/file.schema';
 import { SaltService } from './../../utils/salt/salt.service';
@@ -33,6 +34,7 @@ export class UsersService {
     private eventEmitter: EventEmitter2,
     private channelsService: ChannelsService,
     private guildsService: GuildsService,
+    private filesService: FilesService,
     private saltService: SaltService
   ) {}
 
@@ -85,9 +87,9 @@ export class UsersService {
     if (modifyData.avatar && modifyData.avatar !== user.avatar) {
       if (modifyData.avatar === '0') user.avatar = ''
       else {
-        const file = (await this.fileModel.findOne({ id: modifyData.avatar, type: FileType.AVATAR, owner_id: userId }))
-        if (!file) throw new BadRequestException()
-        user.avatar = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+        const file = await this.filesService.getFileInfo(modifyData.avatar)
+        if (!file || file.type !== FileType.AVATAR) throw new BadRequestException()
+        user.avatar = file.url
       }
       changes++
     }
@@ -95,9 +97,9 @@ export class UsersService {
     if (modifyData.banner && modifyData.banner !== user.banner) {
       if (modifyData.banner === '0') user.banner = ''
       else { 
-        const file = await this.fileModel.findOne({ id: modifyData.banner, type: FileType.BANNER, owner_id: userId })
-        if (!file) throw new BadRequestException()
-        user.banner = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+        const file = await this.filesService.getFileInfo(modifyData.banner)
+        if (!file || file.type !== FileType.BANNER) throw new BadRequestException()
+        user.banner = file.url
       }
       changes++
     }
@@ -249,13 +251,6 @@ export class UsersService {
     )
 
     return cleanedChannel
-  }
-
-  private fixedEncodeURIComponent (str) {
-    return encodeURIComponent(str)
-      .replace(/['()]/g, escape)
-      .replace(/\*/g, '%2A')
-      .replace(/%(?:7C|60|5E)/g, unescape)
   }
 
   private async getUserServers(userId, allowDms?) {

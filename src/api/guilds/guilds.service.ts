@@ -1,3 +1,4 @@
+import { FilesService } from './../files/files.service';
 import { FileType } from './../files/schemas/file.schema';
 import { UserResponse, UserResponseValidate } from './../users/responses/user.response';
 import { RoleResponse, RoleResponseValidate } from './responses/role.response';
@@ -33,6 +34,7 @@ export class GuildsService {
     @InjectModel(File.name) private fileModel: Model<FileDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
+    private filesService: FilesService,
   ) {}
 
   async getGuild(guildId, userId): Promise<Guild> {
@@ -139,17 +141,17 @@ export class GuildsService {
     if (patchGuildDto.icon && patchGuildDto.icon !== guild.icon) {
       if (patchGuildDto.icon === '0') guild.icon = ''
       else {
-        const file = (await this.fileModel.findOne({ id: patchGuildDto.icon, type: FileType.AVATAR, owner_id: userId })).toObject()
-        if (!file) throw new BadRequestException()
-        guild.icon = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+        const file = await this.filesService.getFileInfo(patchGuildDto.icon)
+        if (!file || file.type !== FileType.AVATAR) throw new BadRequestException()
+        guild.icon = file.url
       }
     }
     if (patchGuildDto.banner && patchGuildDto.banner !== guild.banner) {
       if (patchGuildDto.banner === '0') guild.banner = ''
       else { 
-        const file = await this.fileModel.findOne({ id: patchGuildDto.banner, type: FileType.BANNER, owner_id: userId })
-        if (!file) throw new BadRequestException()
-        guild.banner = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+        const file = await this.filesService.getFileInfo(patchGuildDto.banner)
+        if (!file || file.type !== FileType.BANNER) throw new BadRequestException()
+        guild.banner = file.url
       }
     }
     if (patchGuildDto.preferred_locale && patchGuildDto.preferred_locale !== guild.preferred_locale) //will change later
@@ -349,12 +351,6 @@ export class GuildsService {
     return await this.guildModel.exists({ id: guildId, 'members.id': userId })
   }
 
-  private fixedEncodeURIComponent (str) {
-    return encodeURIComponent(str)
-      .replace(/['()]/g, escape)
-      .replace(/\*/g, '%2A')
-      .replace(/%(?:7C|60|5E)/g, unescape)
-  }
 }
 
 

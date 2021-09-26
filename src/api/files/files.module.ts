@@ -14,6 +14,10 @@ import { MulterModule } from '@nestjs/platform-express';
       dest: './upload',
     }),
   ],
+  exports: [
+    FilesService,
+    MongooseModule
+  ],
   controllers: [FilesController],
   providers: [FilesService]
 })

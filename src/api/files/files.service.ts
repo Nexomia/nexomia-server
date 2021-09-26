@@ -16,33 +16,27 @@ export class FilesService {
   ) {}
 
   async getFile(fileId, fileName, res, preview?) {
-    const file = await this.fileModel.findOne({ id: fileId, name: fileName })
-    if (!file) throw new NotFoundException()
+    // const file = await this.fileModel.findOne({ id: fileId, name: fileName })
+    // if (!file) throw new NotFoundException()
 
-    if (preview && !file.vk.file_preview) throw new NotFoundException()
+    // if (preview && !file.vk.file_preview) throw new NotFoundException()
 
-    if (!preview && file.file_server === FileServer.VK && Date.now() - file.vk.file_url_updated > 3600000) {
-      file.vk.file_url = (await this.updateFileUrl(file.vk.file_id, config.vk.getRandomToken(config.vk.tokens)))[0].url
-      file.markModified('vk')
-      await file.save()
-    }
+    // if (file.mime_type.startsWith('image')) {
+    //   res.setHeader('Cache-Control', 'public')
+    //   res.setHeader('Cache-Control', 'max-age=360000')
+    // }
 
-    if (file.mime_type.startsWith('image')) {
-      res.setHeader('Cache-Control', 'public')
-      res.setHeader('Cache-Control', 'max-age=360000')
-    }
+    // res.setHeader('Content-type', preview ? 'image/jpeg' : file.mime_type)
+    // res.setHeader('content-disposition', `attachment; filename*=UTF-8''${this.fixedEncodeURIComponent(preview ? 'preview' : '' + file.name)}`)
+    // if (!preview) res.setHeader('Content-Length', file.size)
 
-    res.setHeader('Content-type', preview ? 'image/jpeg' : file.mime_type)
-    res.setHeader('content-disposition', `attachment; filename*=UTF-8''${this.fixedEncodeURIComponent(preview ? 'preview' : '' + file.name)}`)
-    if (!preview) res.setHeader('Content-Length', file.size)
+    // const response = await axios({
+    //   url: preview ? file.vk.file_preview : file.vk.file_url,
+    //   method: 'GET',
+    //   responseType: 'stream'
+    // })
 
-    const response = await axios({
-      url: preview ? file.vk.file_preview : file.vk.file_url,
-      method: 'GET',
-      responseType: 'stream'
-    })
-
-    response.data.pipe(res)
+    // response.data.pipe(res)
   }
 
   async getFileServer(fileType, userId) {
@@ -52,7 +46,7 @@ export class FilesService {
     file.id = new UniqueID(config.snowflake).getUniqueID() 
     file.type = fileType
     file.owner_id = userId
-    file.file_server = FileServer.VK
+    file.file_server = FileServer.SELECTEL
     await file.save()
     //Сделаю потом
     const upload_url = `http://${config.domain}/api/files/${file.id}`
@@ -81,75 +75,57 @@ export class FilesService {
       )
 
     const fileMime = multerFile.mimetype.split('/')[0]
-    const newPath = fileMime === 'image'
-      ? `${multerFile.path}_${multerFile.originalname}`
-      : `${multerFile.path}.nexo`
-
-    await fs.rename(multerFile.path, newPath)
-    multerFile.path = newPath
+    const uploaded = await axios.put(
+      `https://api.selcdn.ru/v1/SEL_${config.selectel.user}/${config.selectel.container}/${file.id}/${this.fixedEncodeURIComponent(multerFile.originalname)}`,
+      await fs.createReadStream(multerFile.path),
+      {
+        headers: {
+          'Content-Type': multerFile.mimetype,
+          'Content-Length': multerFile.size,
+          'X-Auth-Token': await this.getApiToken()
+        },
+        'maxContentLength': Infinity,
+      }
+    )
   
-    const token = config.vk.getRandomToken(config.vk.tokens)
-    const vkFile = await this.uploadToServer(multerFile, (await this.getUploadServer(token)).upload_url, token, file.id)
-    await fs.unlink(multerFile.path)
-    if (!vkFile) throw new InternalServerErrorException()
-
-    file.vk = new VK()
-    if (vkFile.preview) {
-      const vkImage = vkFile.preview.photo.sizes.find(size => size.type === 'o')
-      const vkPreview = vkFile.preview.photo.sizes.find(size => size.type === 's')
-      file.vk.file_width = vkImage.width
-      file.vk.file_heigth = vkImage.height
-      file.vk.file_preview = vkPreview.src
+    if (!uploaded || uploaded.statusText != 'Created') {
+      await fs.unlink(multerFile.path)
+      throw new InternalServerErrorException()
     }
+
+    await fs.unlink(multerFile.path)
 
     file.mime_type = multerFile.mimetype
     file.name = multerFile.originalname
     file.size = multerFile.size
-    file.vk.file_id = `${vkFile.owner_id}_${vkFile.id}`
-    file.vk.file_url = vkFile.url
-    file.vk.file_url_updated = Date.now()
     file.saved = true
     await file.save()
     
     let extendedFile = file.toObject()
-    if (file.file_server === FileServer.VK) {
-      if (!config.production)
-        extendedFile.url = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
-
-      if (file.vk.file_preview)
-        extendedFile.preview = `http://${config.domain}/api/files/${file.id}/${this.fixedEncodeURIComponent(file.name)}/preview`
-    }
+    extendedFile.url = `https://cdn.nx.wtf/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
 
     return FileResponseValidate(extendedFile)
   }
 
-  private async uploadToServer(file, url, token, id) {
-    const formData = new FormData()
-    formData.append('file', fs.createReadStream(file.path))
-  
-    const uploaded = (await axios.post(url, formData, {
-      headers: formData.getHeaders(),
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity,
-    })).data
-
-    if (uploaded.error) throw new BadRequestException(uploaded.error)
-    return (await this.saveInServer(uploaded.file, token)).doc
-  }
-  
-  private async getUploadServer (token) {
-    return (await axios.get(`https://api.vk.com/method/docs.getUploadServer?group_id=207174644&access_token=${token}&v=5.154`)).data.response
-  }
-  
-  private async saveInServer (file, token) {
-    return (await axios.get(`https://api.vk.com/method/docs.save?access_token=${token}&v=5.154&file=${file}`)).data.response
+  async getFileInfo(fileId): Promise<File> {
+    const file = await this.fileModel.findOne({ id: fileId })
+    let extendedFile = file.toObject()
+    extendedFile.url = `https://cdn.nx.wtf/${file.id}/${this.fixedEncodeURIComponent(file.name)}`
+    return extendedFile
   }
 
-  private async updateFileUrl (fileId, token) {
-    return (await axios.get(`https://api.vk.com/method/docs.getById?docs=${fileId}&access_token=${token}&v=5.154`)).data.response
+  private getApiToken = async () => {
+    return (await axios({
+      method: 'get',
+      url: 'https://api.selcdn.ru/auth/v1.0',
+      headers: {
+        "X-Auth-User": config.selectel.user,
+        "X-Auth-Key" : config.selectel.pass
+      }
+    })).headers["x-storage-token"]
   }
 
-  private fixedEncodeURIComponent (str) {
+  private fixedEncodeURIComponent = (str) => {
     return encodeURIComponent(str)
       .replace(/['()]/g, escape)
       .replace(/\*/g, '%2A')
