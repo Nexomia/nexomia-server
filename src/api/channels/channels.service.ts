@@ -1,27 +1,27 @@
-import { FileType, FileServer } from './../files/schemas/file.schema';
-import { User, UserDocument } from './../users/schemas/user.schema';
-import { UserResponse } from './../users/responses/user.response';
-import { EditMessageDto } from './dto/edit-message.dto';
-import { ChannelResponse, ChannelResponseValidate } from './responses/channel.response';
-import { GetChannelMessagesDto } from './dto/get-channel-messages.dto';
-import { MessageResponse, MessageResponseValidate, MessageUserValidate, MessageAttachmentValidate } from './responses/message.response';
-import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema';
-import { ComputedPermissions } from './../guilds/schemas/role.schema';
-import { Parser } from 'src/utils/parser/parser.utils';
-import { GuildsService } from './../guilds/guilds.service';
-import { config } from './../../app.config';
-import { Invite, InviteDocument } from './../invites/schemas/invite.schema';
-import { CreateInviteDto } from './dto/create-invite.dto';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { Channel, ChannelDocument, ChannelType } from './schemas/channel.schema';
-import { InjectModel } from '@nestjs/mongoose';
-import { Message, MessageDocument, MessageType } from './schemas/message.schema';
-import { BadRequestException, Injectable, NotFoundException, ForbiddenException, Inject, CACHE_MANAGER } from '@nestjs/common';
-import { Model } from 'mongoose';
-import { UniqueID } from 'nodejs-snowflake';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Cache } from 'cache-manager';
-import { File, FileDocument } from '../files/schemas/file.schema';
+import { FileType, FileServer } from './../files/schemas/file.schema'
+import { User, UserDocument } from './../users/schemas/user.schema'
+import { UserResponse } from './../users/responses/user.response'
+import { EditMessageDto } from './dto/edit-message.dto'
+import { ChannelResponse, ChannelResponseValidate } from './responses/channel.response'
+import { GetChannelMessagesDto } from './dto/get-channel-messages.dto'
+import { MessageResponse, MessageResponseValidate, MessageUserValidate, MessageAttachmentValidate } from './responses/message.response'
+import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema'
+import { ComputedPermissions } from './../guilds/schemas/role.schema'
+import { Parser } from 'src/utils/parser/parser.utils'
+import { GuildsService } from './../guilds/guilds.service'
+import { config } from './../../app.config'
+import { Invite, InviteDocument } from './../invites/schemas/invite.schema'
+import { CreateInviteDto } from './dto/create-invite.dto'
+import { CreateMessageDto } from './dto/create-message.dto'
+import { Channel, ChannelDocument, ChannelType } from './schemas/channel.schema'
+import { InjectModel } from '@nestjs/mongoose'
+import { Message, MessageDocument, MessageType } from './schemas/message.schema'
+import { BadRequestException, Injectable, NotFoundException, ForbiddenException, Inject, CACHE_MANAGER } from '@nestjs/common'
+import { Model } from 'mongoose'
+import { UniqueID } from 'nodejs-snowflake'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { Cache } from 'cache-manager'
+import { File, FileDocument } from '../files/schemas/file.schema'
 
 @Injectable()
 export class ChannelsService {
@@ -720,6 +720,8 @@ export class ChannelsService {
       for (const att of message.attachments_compiled) {
         if (att.file_server === FileServer.SELECTEL) {
           att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(att.name)}`
+          if (att.data)
+          att.data.preview_url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(att.data.name)}`
         }
         message.attachments.push(MessageAttachmentValidate(att))
       }
