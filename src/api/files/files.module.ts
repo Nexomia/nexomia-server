@@ -1,24 +1,19 @@
-import { File, FileSchema } from './schemas/file.schema';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Module } from '@nestjs/common';
-import { FilesController } from './files.controller';
-import { FilesService } from './files.service';
-import { MulterModule } from '@nestjs/platform-express';
+import { MongooseModule } from '@nestjs/mongoose'
+import { Module } from '@nestjs/common'
+import { MulterModule } from '@nestjs/platform-express'
+import { File, FileSchema } from './schemas/file.schema'
+import { FilesController } from './files.controller'
+import { FilesService } from './files.service'
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: File.name, schema: FileSchema },
-    ]),
+    MongooseModule.forFeature([{ name: File.name, schema: FileSchema }]),
     MulterModule.register({
       dest: './upload',
     }),
   ],
-  exports: [
-    FilesService,
-    MongooseModule
-  ],
+  exports: [FilesService, MongooseModule],
   controllers: [FilesController],
-  providers: [FilesService]
+  providers: [FilesService],
 })
 export class FilesModule {}

@@ -1,5 +1,5 @@
-import { Channel } from './../schemas/channel.schema';
-import myzod, { Infer } from 'myzod';
+import myzod, { Infer } from 'myzod'
+import { Channel } from './../schemas/channel.schema'
 
 const ChannelResponseSchema = myzod.object({
   id: myzod.string(),
@@ -17,9 +17,13 @@ const ChannelResponseSchema = myzod.object({
   bitrate: myzod.number().optional(),
   user_limit: myzod.number().optional(),
   rate_limit_per_user: myzod.number().optional(),
-  pinned_messages_ids: myzod.array(myzod.unknown())
-});
+  pinned_messages_ids: myzod.array(myzod.unknown()),
+})
 
-export type ChannelResponse = Infer<typeof ChannelResponseSchema>;
+export type ChannelResponse = Infer<typeof ChannelResponseSchema>
 
-export const ChannelResponseValidate = (channel: Channel) => { return<ChannelResponse> ChannelResponseSchema.allowUnknownKeys().parse(channel) }
+export const ChannelResponseValidate = (channel: Channel) => {
+  return <ChannelResponse>(
+    ChannelResponseSchema.allowUnknownKeys().parse(channel)
+  )
+}

@@ -1,5 +1,5 @@
-import { Role } from './../schemas/role.schema';
-import myzod, { Infer } from 'myzod';
+import myzod, { Infer } from 'myzod'
+import { Role } from './../schemas/role.schema'
 
 const RoleResponseSchema = myzod.object({
   id: myzod.string(),
@@ -7,7 +7,7 @@ const RoleResponseSchema = myzod.object({
   name: myzod.string(),
   permissions: myzod.object({
     allow: myzod.number(),
-    deny: myzod.number()
+    deny: myzod.number(),
   }),
   color: myzod.string().optional(),
   hoist: myzod.boolean().optional(),
@@ -17,6 +17,8 @@ const RoleResponseSchema = myzod.object({
   members: myzod.array(myzod.string()).optional(),
 })
 
-export type RoleResponse = Infer<typeof RoleResponseSchema>;
+export type RoleResponse = Infer<typeof RoleResponseSchema>
 
-export const RoleResponseValidate = (role: Role) => { return<RoleResponse> RoleResponseSchema.allowUnknownKeys().parse(role) }
+export const RoleResponseValidate = (role: Role) => {
+  return <RoleResponse>RoleResponseSchema.allowUnknownKeys().parse(role)
+}

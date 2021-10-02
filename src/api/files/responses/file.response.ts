@@ -1,5 +1,5 @@
-import { File } from './../schemas/file.schema';
-import myzod, { Infer } from 'myzod';
+import myzod, { Infer } from 'myzod'
+import { File } from './../schemas/file.schema'
 
 const FileResponseSchema = myzod.object({
   id: myzod.string(),
@@ -9,9 +9,11 @@ const FileResponseSchema = myzod.object({
   size: myzod.number(),
   owner_id: myzod.string(),
   url: myzod.string(),
-  preview: myzod.string().optional()
-});
+  preview: myzod.string().optional(),
+})
 
-export type FileResponse = Infer<typeof FileResponseSchema>;
+export type FileResponse = Infer<typeof FileResponseSchema>
 
-export const FileResponseValidate = (file: File) => { return<FileResponse> FileResponseSchema.allowUnknownKeys().parse(file) }
+export const FileResponseValidate = (file: File) => {
+  return <FileResponse>FileResponseSchema.allowUnknownKeys().parse(file)
+}

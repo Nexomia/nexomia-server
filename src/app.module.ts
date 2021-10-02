@@ -1,19 +1,21 @@
-import { FilesModule } from './api/files/files.module';
-import { WsModule } from './ws/ws.module';
-import { UsersService } from './api/users/users.service';
-import { AppGateway } from './ws/app.gateway';
-import { InvitesModule } from './api/invites/invites.module';
-import { ChannelsModule } from './api/channels/channels.module';
-import { GuildsModule } from './api/guilds/guilds.module';
-import { JwtService } from './utils/jwt/jwt.service';
-import { AuthMiddleware } from './middlewares/auth.middleware';
-import { AuthModule } from './api/auth/auth.module';
-import { UsersModule } from './api/users/users.module';
-import { CacheModule, MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { config } from './app.config';
-import { EventEmitterModule } from '@nestjs/event-emitter';
-
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common'
+import { EventEmitterModule } from '@nestjs/event-emitter'
+import { MongooseModule } from '@nestjs/mongoose'
+import { AuthModule } from './api/auth/auth.module'
+import { ChannelsModule } from './api/channels/channels.module'
+import { FilesModule } from './api/files/files.module'
+import { GuildsModule } from './api/guilds/guilds.module'
+import { InvitesModule } from './api/invites/invites.module'
+import { UsersModule } from './api/users/users.module'
+import { config } from './app.config'
+import { AuthMiddleware } from './middlewares/auth.middleware'
+import { JwtService } from './utils/jwt/jwt.service'
+import { WsModule } from './ws/ws.module'
 
 @Module({
   imports: [
@@ -28,10 +30,14 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
       wildcard: true,
       delimiter: '.',
     }),
-    MongooseModule.forRoot(config.db)
+    MongooseModule.forRootAsync({
+      useFactory: () => ({
+        uri: config.db,
+      }),
+    }),
   ],
   controllers: [],
-  providers: [ JwtService ],
+  providers: [JwtService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
