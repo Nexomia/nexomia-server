@@ -1,9 +1,8 @@
-import { Invite } from './schemas/invite.schema';
-import { AccessToken } from './../../interfaces/access-token.interface';
-import { InvitesService, InviteInfo } from './invites.service';
-import { Controller, Get, Param } from '@nestjs/common';
-import { DUser } from 'src/decorators/user.decorator';
-import { Guild } from '../guilds/schemas/guild.schema';
+import { Controller, Get, Param } from '@nestjs/common'
+import { DUser } from 'decorators/user.decorator'
+import { Guild } from '../guilds/schemas/guild.schema'
+import { AccessToken } from './../../interfaces/access-token.interface'
+import { InvitesService, InviteInfo } from './invites.service'
 
 @Controller('invites')
 export class InvitesController {
@@ -15,7 +14,10 @@ export class InvitesController {
   }
 
   @Get(':inviteId/accept')
-  async accept(@Param('inviteId') id: string, @DUser() user: AccessToken): Promise<Guild> {
+  async accept(
+    @Param('inviteId') id: string,
+    @DUser() user: AccessToken,
+  ): Promise<Guild> {
     return await this.invitesService.accept(id, user.id)
   }
 }

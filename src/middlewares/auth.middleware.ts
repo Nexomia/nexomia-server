@@ -1,6 +1,10 @@
-import { JwtService } from '../utils/jwt/jwt.service';
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
+import {
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+} from '@nestjs/common'
+import { Request, Response, NextFunction } from 'express'
+import { JwtService } from '../utils/jwt/jwt.service'
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
@@ -9,11 +13,15 @@ export class AuthMiddleware implements NestMiddleware {
     if (
       !req.baseUrl.includes('/auth/') &&
       !(
-        req.baseUrl.includes('/files/') &&
-        req.baseUrl.split('/files/')[1].split('/')[1] // я знаю, что это пиздец, мне потом нужно будет перенастроить мидлварь просто
+        (
+          req.baseUrl.includes('/files/') &&
+          req.baseUrl.split('/files/')[1].split('/')[1]
+        ) // я знаю, что это пиздец, мне потом нужно будет перенастроить мидлварь просто
       )
     ) {
-      req.user = await this.jwtService.decodeAccessToken(req.headers['authorization'])
+      req.user = await this.jwtService.decodeAccessToken(
+        req.headers['authorization'],
+      )
       if (!req.user) throw new UnauthorizedException()
     }
     next()

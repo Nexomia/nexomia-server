@@ -1,14 +1,20 @@
-import { UserResponse } from './responses/user.response';
-import { ChannelResponse } from './../channels/responses/channel.response';
-import { Channel } from './../channels/schemas/channel.schema';
-import { Guild } from './../guilds/schemas/guild.schema';
-import { User } from 'src/api/users/schemas/user.schema';
-import { AccessToken } from './../../interfaces/access-token.interface';
-import { GetUserGuildsDto } from './dto/get-guilds.dto';
-import { ModifyUserDto } from './dto/modify-user.dto';
-import { DUser } from '../../decorators/user.decorator';
-import { UsersService } from './users.service';
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common'
+import { DUser } from '../../decorators/user.decorator'
+import { UserResponse } from './responses/user.response'
+import { ChannelResponse } from './../channels/responses/channel.response'
+import { Guild } from './../guilds/schemas/guild.schema'
+import { AccessToken } from './../../interfaces/access-token.interface'
+import { GetUserGuildsDto } from './dto/get-guilds.dto'
+import { ModifyUserDto } from './dto/modify-user.dto'
+import { UsersService } from './users.service'
 
 @Controller('users')
 export class UsersController {
@@ -16,8 +22,11 @@ export class UsersController {
 
   //User Data
   @Get(':id')
-  async get(@Param('id') id, @DUser() user: AccessToken): Promise<UserResponse> {
-    let me: boolean = false
+  async get(
+    @Param('id') id,
+    @DUser() user: AccessToken,
+  ): Promise<UserResponse> {
+    let me = false
     if (id === '@me' || id === user.id) {
       id = user.id
       me = true
@@ -26,19 +35,28 @@ export class UsersController {
   }
 
   @Patch('@me')
-  async patch(@Body() modifyUserDto: ModifyUserDto, @DUser() user: AccessToken): Promise<UserResponse> {
+  async patch(
+    @Body() modifyUserDto: ModifyUserDto,
+    @DUser() user: AccessToken,
+  ): Promise<UserResponse> {
     return await this.usersService.patchUser(user.id, modifyUserDto)
   }
 
   //User Guilds
   @Get('@me/guilds')
-  async guilds(@Body() getUserGuildsDto: GetUserGuildsDto, @DUser() user: AccessToken): Promise<Guild[]> {
+  async guilds(
+    @Body() getUserGuildsDto: GetUserGuildsDto,
+    @DUser() user: AccessToken,
+  ): Promise<Guild[]> {
     return await this.usersService.getGuilds(user.id, getUserGuildsDto)
   }
 
   //Leave Guild
   @Delete('@me/guilds/:id')
-  async leaveGuild(@Param('id') guildId, @DUser() user: AccessToken): Promise<void> {
+  async leaveGuild(
+    @Param('id') guildId,
+    @DUser() user: AccessToken,
+  ): Promise<void> {
     return await this.usersService.leaveGuild(user.id, guildId)
   }
 
@@ -49,7 +67,10 @@ export class UsersController {
   }
 
   @Post('@me/channels')
-  create(@DUser() user: AccessToken, @Body() createChannelDto): Promise<ChannelResponse> {
+  create(
+    @DUser() user: AccessToken,
+    @Body() createChannelDto,
+  ): Promise<ChannelResponse> {
     return this.usersService.createChannel(user.id, createChannelDto)
   }
 }

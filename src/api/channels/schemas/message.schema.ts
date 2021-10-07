@@ -1,8 +1,7 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { User } from 'src/api/users/schemas/user.schema';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { Document } from 'mongoose'
 
-export type MessageDocument = Message & Document;
+export type MessageDocument = Message & Document
 
 @Schema({ versionKey: false })
 export class Message {
@@ -10,130 +9,130 @@ export class Message {
    * Id of the message
    */
   @Prop({ unique: true })
-  id?: string;
+  id?: string
 
   /**
    * Type of message
    */
   @Prop()
-  type: number;
+  type: number
 
   /**
    * Id of the guild if the message was sent in
    */
   @Prop()
-  guild_id?: string;
+  guild_id?: string
 
   /**
    * Id of the channel the message was sent in
    */
   @Prop()
-  channel_id: string;
+  channel_id: string
 
   /**
    * Id of the author od this message
    */
   @Prop()
-  author: string;
+  author: string
 
   /**
    * Contents of the message
    */
   @Prop({ default: '' })
-  content?: string;
+  content?: string
 
   /**
    * When this message was created
    */
   @Prop()
-  created: number;
+  created: number
 
   /**
    * whether this message was edited
    */
   @Prop({ default: false })
-  edited: boolean;
+  edited: boolean
 
   /**
    * when this message was edited
    */
   @Prop()
-  edit_time?: number | null;
+  edit_time?: number | null
 
   /**
    * @Message array with this message revisions
    */
   @Prop()
-  edit_history?: Message[] | null;
-  
+  edit_history?: Message[] | null
+
   /**
    * Any attached files
    */
   @Prop()
-  attachment_ids?: string[];
+  attachment_ids?: string[]
 
   /**
    * Ids of resent messages
    */
   @Prop()
-  forwarded_ids?: string[] | null;
+  forwarded_ids?: string[] | null
 
   /**
    * Revision numbers of resent messages
    */
   @Prop()
-  forwarded_revs?: number[] | null;
+  forwarded_revs?: number[] | null
 
   /**
    * Allows to prevent forwarding message to other servers
    * @default True
    */
   @Prop({ default: true })
-  allow_forwarding?: boolean;
+  allow_forwarding?: boolean
 
   /**
    * Reactions to the message
    */
   @Prop()
-  reactions?: Reaction[] | null;
+  reactions?: Reaction[] | null
 
   /**
    * Ids of users specifically mentioned in the message
    */
   @Prop()
-  mentions?: string[] | null;
+  mentions?: string[] | null
 
   /**
    * 	Id of attached sticker
    */
   @Prop()
-  sticker?: string;
+  sticker?: string
 
   /**
    * Whether this message was deleted
    */
   @Prop({ default: false })
-  deleted: boolean;
+  deleted: boolean
 
   /**
    * Any embedded content
    */
   @Prop()
-  embeds?: Embed[] | null;
+  embeds?: Embed[] | null
 
   /**
    * Any attached files
    */
-  attachments?: Attachment[] | null;
+  attachments?: Attachment[] | null
 }
 
-export const MessageSchema = SchemaFactory.createForClass(Message);
+export const MessageSchema = SchemaFactory.createForClass(Message)
 
 export class Embed {
   /**
    * Title of embed
    */
-  title?: string;
+  title?: string
 
   /**
    * Type of embed (always "rich" for webhook embeds)
@@ -145,196 +144,196 @@ export class Embed {
    * @link -	link embed
    * !!! Embed types should be considered deprecated and might be removed in a future API version. !!!
    */
-  type?: 'rich' | 'image' | 'video' | 'gifv' | 'article' | 'link';
+  type?: 'rich' | 'image' | 'video' | 'gifv' | 'article' | 'link'
 
   /**
    * Description of embed
    */
-  description?: string;
+  description?: string
 
   /**
    * Url of embed
    */
-  url?: string;
+  url?: string
 
   /**
    * Timestamp of embed content
    */
-  timestamp?: number;
+  timestamp?: number
 
   /**
    * Color code of the embed
    */
-  color?: number;
+  color?: number
 
   /**
    * Footer information
    */
-  footer?: EmbedFooter;
+  footer?: EmbedFooter
 
   /**
    * Image information
    */
-  image?: EmbedImage;
+  image?: EmbedImage
 
   /**
    * Thumbnail information
    */
-  thumbnail?: EmbedThumbnail;
+  thumbnail?: EmbedThumbnail
 
   /**
    * Video information
    */
-  video?: EmbedVideo;
+  video?: EmbedVideo
 
   /**
    * Provider information
    */
-  provider?: EmbedProvider;
+  provider?: EmbedProvider
 
   /**
    * Author information
    */
-  author?: EmbedAuthor;
+  author?: EmbedAuthor
 
   /**
    * Fields information
    */
-  fields?: EmbedField[];
+  fields?: EmbedField[]
 }
 
 class EmbedThumbnail {
   /**
    * Source url of thumbnail (only supports http(s) and attachments)
    */
-  url?: string;
+  url?: string
 
   /**
    * A proxied url of the thumbnail
    */
-  proxy_url?: string;
+  proxy_url?: string
 
   /**
    * Height of thumbnail
    */
-  height?: number;
+  height?: number
 
   /**
    * Width of thumbnail
    */
-  width?: number;
+  width?: number
 }
 
 class EmbedVideo {
   /**
    * Source url of video
    */
-  url?: string;
+  url?: string
 
   /**
    * A proxied url of the video
    */
-  proxy_url?: string;
+  proxy_url?: string
 
   /**
    * Height of video
    */
-  height?: number;
+  height?: number
 
   /**
    * Width of video
    */
-  width?: number;
+  width?: number
 }
 
 class EmbedImage {
   /**
    * Source url of image (only supports http(s) and attachments)
    */
-  url?: string;
+  url?: string
 
   /**
    * A proxied url of the image
    */
-  proxy_url?: string;
+  proxy_url?: string
 
   /**
    * Height of image
    */
-  height?: number;
+  height?: number
 
   /**
    * Width of image
    */
-  width?: number;
+  width?: number
 }
 
 class EmbedProvider {
   /**
    * Name of provider
    */
-  name?: string;
+  name?: string
 
   /**
    * Url of provider
    */
-  url?: string;
+  url?: string
 }
 
 class EmbedAuthor {
   /**
    * Name of author
    */
-  name?: string;
+  name?: string
 
   /**
    * Url of author
    */
-  url?: string;
+  url?: string
 
   /**
    * Url of author icon (only supports http(s) and attachments)
    */
-  icon_url?: string;
+  icon_url?: string
 
   /**
    * A proxied url of author icon
    */
-  proxy_icon_url?: string;
+  proxy_icon_url?: string
 }
 
 class EmbedFooter {
   /**
    * Footer text
    */
-  text: string;
+  text: string
 
   /**
    * Url of footer icon (only supports http(s) and attachments)
    */
-  icon_url?: string;
+  icon_url?: string
 
   /**
    * A proxied url of footer icon
    */
-  proxy_icon_url?: string;
+  proxy_icon_url?: string
 }
 
 class EmbedField {
   /**
    * Name of the field
    */
-  name?: string;
+  name?: string
 
   /**
    * Value of the field
    */
-  value?: string;
+  value?: string
 
   /**
    * Whether or not this field should display inline
    */
-  inline?: boolean;
+  inline?: boolean
 }
 
 export class AllowedMentions {
@@ -344,94 +343,94 @@ export class AllowedMentions {
    * @users - Controls user mentions
    * @everyone - Controls everyone and here mentions
    */
-  parse?: AllowedMentionsTypes[];
+  parse?: AllowedMentionsTypes[]
 
   /**
    * Array of role_ids to mention (Max size of 100)
    */
-  roles?: string[];
+  roles?: string[]
 
   /**
    * Array of user_ids to mention (Max size of 100)
    */
-  users?: string[];
+  users?: string[]
 
   /**
    * For replies, whether to mention the author of the message being replied to (default false)
    */
-  replied_user?: boolean;
+  replied_user?: boolean
 }
 
-type AllowedMentionsTypes = 'roles' | 'users' | 'everyone';
+type AllowedMentionsTypes = 'roles' | 'users' | 'everyone'
 
 export class MessageReference {
   /**
    * Id of the originating message
    */
-  message_id?: string;
+  message_id?: string
 
   /**
    * Id of the originating message's channel
    */
-  channel_id?: string;
+  channel_id?: string
 
   /**
    * Id of the originating message's guild
    */
-  guild_id?: string;
+  guild_id?: string
 
   /**
    * When sending, whether to error if the referenced message doesn't exist instead of sending as a normal (non-reply) message, default true
    */
-  fail_if_not_exists?: boolean;
+  fail_if_not_exists?: boolean
 }
 
 export class Attachment {
   /**
    * Attachment id
    */
-  id?: string;
+  id?: string
 
   /**
    * Name of file attached
    */
-  name?: string;
+  name?: string
 
   /**
    * The attachment's media type
    * https://en.wikipedia.org/wiki/Media_type
    */
-  mime_type?: string;
+  mime_type?: string
 
   /**
    * Size of file in bytes
    */
-  size?: number;
+  size?: number
 
   /**
    * Source url of file
    */
-  url?: string;
-  
+  url?: string
+
   /**
    * Preview of file (if image)
    */
-  preview?: string;
+  preview?: string
 
   /**
    * Height of file (if image)
    */
-  height?: number;
+  height?: number
 
   /**
    * Width of file (if image)
    */
-  width?: number;
+  width?: number
 }
 
 class Reaction {
-  emoji_id: string;
-  users: string[];
+  emoji_id: string
+  users: string[]
 }
 
 export enum MessageType {

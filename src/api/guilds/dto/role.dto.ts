@@ -1,10 +1,16 @@
-import { IsBoolean, IsNumber, IsOptional, IsString, Length } from "class-validator"
-import { Permissions } from "../schemas/role.schema"
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Length,
+} from 'class-validator'
+import { Permissions } from '../schemas/role.schema'
 
 export class RoleDto {
   @IsOptional()
   @IsString()
-  @Length(1,20)
+  @Length(1, 20)
   name?: string
 
   @IsOptional()

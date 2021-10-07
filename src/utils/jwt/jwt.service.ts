@@ -1,7 +1,7 @@
-import { config } from './../../app.config';
-import { Injectable } from '@nestjs/common';
-import * as jwt from 'jsonwebtoken';
-import { AccessToken } from 'src/interfaces/access-token.interface';
+import { Injectable } from '@nestjs/common'
+import * as jwt from 'jsonwebtoken'
+import { AccessToken } from 'interfaces/access-token.interface'
+import { config } from './../../app.config'
 
 @Injectable()
 export class JwtService {
@@ -39,7 +39,7 @@ export class JwtService {
     }
   }
 
-  async createCustomToken(data: object, expires) {
+  async createCustomToken(data, expires) {
     const token = jwt.sign(data, config.jwt.secret, {
       expiresIn: `${expires || config.jwt.accessTokenExpires}`,
     })
@@ -48,5 +48,5 @@ export class JwtService {
 }
 
 class EmailToken {
-  uid: string;
+  uid: string
 }

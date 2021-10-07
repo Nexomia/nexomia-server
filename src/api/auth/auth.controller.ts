@@ -1,16 +1,20 @@
-import { Fingerprint } from './../../interfaces/fingerprint.interface';
-import { DFingerprint } from '../../decorators/fingerprint.decorator';
-import { AuthService } from './auth.service';
-import { LoginUserDto } from './dto/login-auth.dto';
-import { Body, Controller, Get, Header, Headers, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
-import { RegAuthDto } from './dto/reg-auth.dto';
+import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common'
+import { DFingerprint } from '../../decorators/fingerprint.decorator'
+import { Fingerprint } from './../../interfaces/fingerprint.interface'
+import { AuthService } from './auth.service'
+import { LoginUserDto } from './dto/login-auth.dto'
+import { RegAuthDto } from './dto/reg-auth.dto'
 
 @Controller('auth')
 export class AuthController {
-constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) {}
 
   @Post('/login')
-  async login(@Body() loginAuthDto: LoginUserDto, @DFingerprint() fp: Fingerprint, @Headers('X-Forwarded-For') ip: string) {
+  async login(
+    @Body() loginAuthDto: LoginUserDto,
+    @DFingerprint() fp: Fingerprint,
+    @Headers('X-Forwarded-For') ip: string,
+  ) {
     return await this.authService.login(loginAuthDto, fp, ip)
   }
 
@@ -24,7 +28,10 @@ constructor(private authService: AuthService) {}
     return await this.authService.confirmEmail(code)
   }
   @Get('/token')
-  async getNewToken(@Headers('refreshToken') refreshToken: string, @DFingerprint() fingerprint: Fingerprint) {
+  async getNewToken(
+    @Headers('refreshToken') refreshToken: string,
+    @DFingerprint() fingerprint: Fingerprint,
+  ) {
     return await this.authService.getNewAccessToken(refreshToken, fingerprint)
   }
 }

@@ -1,15 +1,15 @@
-import { EmailService } from './../../utils/email/email.service';
-import { JwtService } from 'src/utils/jwt/jwt.service';
-import { SaltService } from './../../utils/salt/salt.service';
-import { AuthController } from './auth.controller';
-import { User, UserSchema } from '../users/schemas/user.schema';
-import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { MongooseModule } from '@nestjs/mongoose';
+import { JwtService } from 'utils/jwt/jwt.service'
+import { Module } from '@nestjs/common'
+import { MongooseModule } from '@nestjs/mongoose'
+import { User, UserSchema } from '../users/schemas/user.schema'
+import { EmailService } from './../../utils/email/email.service'
+import { SaltService } from './../../utils/salt/salt.service'
+import { AuthController } from './auth.controller'
+import { AuthService } from './auth.service'
 
 @Module({
   imports: [
-    MongooseModule.forFeature([ { name: User.name, schema: UserSchema } ]),
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
   ],
   providers: [AuthService, SaltService, EmailService, JwtService],
   controllers: [AuthController],

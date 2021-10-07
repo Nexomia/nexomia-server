@@ -1,9 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import axios from 'axios'
-import fs from 'fs'
+import { Injectable } from '@nestjs/common'
 
 @Injectable()
 export class UploaderService {
-  constructor() {}
-
+  constructor() {
+    /**/
+  }
 }

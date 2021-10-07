@@ -1,5 +1,5 @@
-import { User } from './../schemas/user.schema';
-import myzod, { Infer } from 'myzod';
+import myzod, { Infer } from 'myzod'
+import { User } from './../schemas/user.schema'
 
 const UserResponseSchema = myzod.object({
   id: myzod.string(),
@@ -14,9 +14,11 @@ const UserResponseSchema = myzod.object({
   verified: myzod.boolean(),
   premium_type: myzod.boolean(),
   public_flags: myzod.number().optional(),
-  connected: myzod.boolean().optional()
+  connected: myzod.boolean().optional(),
 })
 
-export type UserResponse = Infer<typeof UserResponseSchema>;
+export type UserResponse = Infer<typeof UserResponseSchema>
 
-export const UserResponseValidate = (user: User) => { return<UserResponse> UserResponseSchema.allowUnknownKeys().parse(user) }
+export const UserResponseValidate = (user: User) => {
+  return <UserResponse>UserResponseSchema.allowUnknownKeys().parse(user)
+}
