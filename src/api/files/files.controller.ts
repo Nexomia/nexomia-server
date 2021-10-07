@@ -4,7 +4,6 @@ import {
   Param,
   Post,
   Query,
-  Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common'
@@ -17,7 +16,7 @@ import { FilesService } from './files.service'
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
-  @Get(':fileId/:fileName')
+  /*@Get(':fileId/:fileName')
   async getFIle(@Param() params, @Res() res) {
     return this.filesService.getFile(params.fileId, params.fileName, res)
   }
@@ -25,7 +24,7 @@ export class FilesController {
   @Get(':fileId/:fileName/preview')
   async getFIlePreview(@Param() params, @Res() res) {
     return this.filesService.getFile(params.fileId, params.fileName, res, true)
-  }
+  }*/
 
   @Get('upload_server')
   async getServer(

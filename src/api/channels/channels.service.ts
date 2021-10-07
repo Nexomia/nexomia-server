@@ -24,13 +24,13 @@ import { User, UserDocument } from './../users/schemas/user.schema'
 import { CreateInviteDto } from './dto/create-invite.dto'
 import { CreateMessageDto } from './dto/create-message.dto'
 import { EditMessageDto } from './dto/edit-message.dto'
-import { FollowChannelDto } from './dto/follow-channel.dto'
 import { GetChannelMessagesDto } from './dto/get-channel-messages.dto'
 import {
   ChannelResponse,
   ChannelResponseValidate,
 } from './responses/channel.response'
 import {
+  MessageAttachment,
   MessageAttachmentValidate,
   MessageResponse,
   MessageResponseValidate,
@@ -62,7 +62,7 @@ export class ChannelsService {
     return ChannelResponseValidate(channel)
   }
 
-  async deleteChannel(channelId: string) {}
+  // async deleteChannel(channelId: string) {}
 
   async getChannelMessages(
     channelId,
@@ -308,7 +308,7 @@ export class ChannelsService {
     return cleanedMessage
   }
 
-  async crosspostMessage(channelId, messageId) {}
+  // async crosspostMessage(channelId, messageId) {}
 
   async createReaction(
     channelId: string,
@@ -445,11 +445,11 @@ export class ChannelsService {
     return
   }
 
-  async getReactions(channelId, messageId, emojiId) {}
+  // async getReactions(channelId, messageId, emojiId) {}
 
-  async deleteReactions(channelId, messageId) {}
+  // async deleteReactions(channelId, messageId) {}
 
-  async deleteReactionsForEmoji(channelId, messageId) {}
+  // async deleteReactionsForEmoji(channelId, messageId) {}
 
   async editMessage(
     channelId: string,
@@ -708,7 +708,7 @@ export class ChannelsService {
     return
   }
 
-  async editPermissions(channelId, overwriteId) {}
+  // async editPermissions(channelId, overwriteId) {}
 
   async getInvites(channelId: string) {
     const invites = await this.inviteModel.find(
@@ -759,7 +759,7 @@ export class ChannelsService {
     return invite
   }
 
-  async followChannel(channelId: string, followDto: FollowChannelDto) {}
+  // async followChannel(channelId: string, followDto: FollowChannelDto) {}
 
   async typing(channelId, userId) {
     const channel = await (
@@ -963,9 +963,9 @@ export class ChannelsService {
     return sortedMessages.filter(Boolean)
   }
 
-  async addRecipient(channelId, userId) {}
+  // async addRecipient(channelId, userId) {}
 
-  async removeRecipient(channelId, userId) {}
+  // async removeRecipient(channelId, userId) {}
 
   private inviteCodeGenerator(length: number): string {
     const alpabet =
@@ -982,7 +982,7 @@ export class ChannelsService {
     if (message.forwarded_ids.length) {
       for (const i in message.forwarded_compiled) {
         message.forwarded_compiled[i] =
-          <extMessage>(
+          <ExtendedMessage>(
             message.forwarded_compiled[i].edit_history[
               message.forwarded_revs[i]
             ]
@@ -1030,9 +1030,13 @@ export class ChannelsService {
     if (message.attachment_ids.length) {
       for (const att of message.attachments_compiled) {
         if (att.file_server === FileServer.SELECTEL) {
-          att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(att.name)}`
+          att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
+            att.name,
+          )}`
           if (att.data)
-            att.data.preview_url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(att.data.name)}`
+            att.data.preview_url = `https://cdn.nx.wtf/${
+              att.id
+            }/${this.parser.encodeURI(att.data.name)}`
         }
         message.attachments.push(MessageAttachmentValidate(att))
       }
@@ -1044,16 +1048,22 @@ export class ChannelsService {
     return await this.channelModel.exists({ id: channelId, recipients: userId })
   }
 }
-class AgreggatedMessage extends Message {
-  forwarded_compiled: extMessage[]
-  forwarded_messages: MessageResponse[]
+class AgrMessage {
   user: UserResponse
   userObject: User
   forwarded_compiled_users: UserDocument[]
+  forwarded_messages: MessageResponse[]
+  forwarded_compiled: ExtendedMessage[]
+  attachments: MessageAttachment[]
   attachments_compiled: FileDocument[]
   forwarded_compiled_attachments: FileDocument[]
 }
 
-class extMessage extends Message {
+class extMessage {
   user: UserResponse
+  attachments: MessageAttachment[]
 }
+
+type ExtendedMessage = extMessage & Message
+
+type AgreggatedMessage = AgrMessage & Message

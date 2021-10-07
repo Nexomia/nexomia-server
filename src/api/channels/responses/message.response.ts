@@ -1,5 +1,5 @@
-import { User } from 'api/users/schemas/user.schema'
 import myzod, { Infer } from 'myzod'
+import { User } from '../../users/schemas/user.schema'
 import { FileDocument } from './../../files/schemas/file.schema'
 import { Message } from './../schemas/message.schema'
 
@@ -50,13 +50,13 @@ const MessageAttachmentSchema = myzod.object({
   size: myzod.number(),
   url: myzod.string(),
   data: myzod
-  .object({
-    width: myzod.number(),
-    height: myzod.number(),
-    preview_url: myzod.string(),
-  })
-  .allowUnknownKeys()
-  .optional(),
+    .object({
+      width: myzod.number(),
+      height: myzod.number(),
+      preview_url: myzod.string(),
+    })
+    .allowUnknownKeys()
+    .optional(),
 })
 
 export type MessageAttachment = Infer<typeof MessageAttachmentSchema>

@@ -2,7 +2,7 @@
   "production": false,
   "domain": "localhost:7081",
   "port": 7081,
-  "db": "mongodb://nexomiaDev:deNewOxima1202@mongo:27017/NexomiaNew",
+  "db": "mongodb://nexomiaDev:deNewOxima1202@45.67.230.78:9000/NexomiaNew",
   "salt": "6639d7dbd5068884af2287811e1c58f29c9ef88bfecba064189a2cc1e62edd654eabfde3654e572c11c7e5ca7dc5c01a283dffb995cdc521393943ed77450c97",
   "jwt": {
     "secret": "048385bb53e0c15acf9e7c09dd44a313556372cb9dd7cedc12dc12a21f13128713224fdebe12ceb987ae6bf38a160331dbee72f338cd470586bdcd9b9ff7ffec",

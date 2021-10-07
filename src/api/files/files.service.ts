@@ -2,7 +2,6 @@ import { UniqueID } from 'nodejs-snowflake'
 import { InjectModel } from '@nestjs/mongoose'
 import {
   Injectable,
-  InternalServerErrorException,
   PayloadTooLargeException,
   BadRequestException,
   ForbiddenException,
@@ -10,7 +9,7 @@ import {
 import { Model } from 'mongoose'
 import axios from 'axios'
 import fs from 'promise-fs'
-import * as ffmpeg from 'fluent-ffmpeg'
+import ffmpeg from 'fluent-ffmpeg'
 import {
   File,
   FileDocument,
@@ -25,24 +24,24 @@ import { FileResponseValidate } from './responses/file.response'
 export class FilesService {
   constructor(@InjectModel(File.name) private fileModel: Model<FileDocument>) {}
 
-  async getFile(fileId, fileName, res, preview?) {
-    // const file = await this.fileModel.findOne({ id: fileId, name: fileName })
-    // if (!file) throw new NotFoundException()
-    // if (preview && !file.vk.file_preview) throw new NotFoundException()
-    // if (file.mime_type.startsWith('image')) {
-    //   res.setHeader('Cache-Control', 'public')
-    //   res.setHeader('Cache-Control', 'max-age=360000')
-    // }
-    // res.setHeader('Content-type', preview ? 'image/jpeg' : file.mime_type)
-    // res.setHeader('content-disposition', `attachment filename*=UTF-8''${this.fixedEncodeURIComponent(preview ? 'preview' : '' + file.name)}`)
-    // if (!preview) res.setHeader('Content-Length', file.size)
-    // const response = await axios({
-    //   url: preview ? file.vk.file_preview : file.vk.file_url,
-    //   method: 'GET',
-    //   responseType: 'stream'
-    // })
-    // response.data.pipe(res)
-  }
+  /*async getFile(fileId, fileName, res, preview?) {
+    const file = await this.fileModel.findOne({ id: fileId, name: fileName })
+    if (!file) throw new NotFoundException()
+    if (preview && !file.vk.file_preview) throw new NotFoundException()
+    if (file.mime_type.startsWith('image')) {
+      res.setHeader('Cache-Control', 'public')
+      res.setHeader('Cache-Control', 'max-age=360000')
+    }
+    res.setHeader('Content-type', preview ? 'image/jpeg' : file.mime_type)
+    res.setHeader('content-disposition', `attachment filename*=UTF-8''${this.fixedEncodeURIComponent(preview ? 'preview' : '' + file.name)}`)
+    if (!preview) res.setHeader('Content-Length', file.size)
+    const response = await axios({
+      url: preview ? file.vk.file_preview : file.vk.file_url,
+      method: 'GET',
+      responseType: 'stream'
+    })
+    response.data.pipe(res)
+  }*/
 
   async getFileServer(fileType, userId) {
     if (!fileType || fileType < 1 || fileType > 7)
@@ -230,7 +229,7 @@ export class FilesService {
       .replace(/%(?:7C|60|5E)/g, unescape)
   }
   private getFileData = async (path): Promise<ffmpeg.FfprobeData> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       ffmpeg.ffprobe(path, async (err, data) => {
         resolve(data)
       })
@@ -259,7 +258,7 @@ export class FilesService {
       mime = 'image/jpeg'
       ffOutputOptions = ['-vf scale=256:256', '-an']
     } else return
-    const filePreviewPath = await new Promise((resolve, reject) => {
+    const filePreviewPath = await new Promise((resolve) => {
       ffmpeg(file.path)
         .outputOptions(ffOutputOptions)
         .saveToFile(`${file.path}.${filename}`)
@@ -294,7 +293,7 @@ export class FilesService {
         ? `${fileInfo.streams[0].height}:${fileInfo.streams[0].height}`
         : `${fileInfo.streams[0].width}:${fileInfo.streams[0].width}`
     return Promise.all([
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(file.path)
           .outputOptions([`-vf crop=${cropSize},scale=256:256`])
           .saveToFile(`${file.path}.256.webp`)
@@ -311,7 +310,7 @@ export class FilesService {
             })
           })
       }),
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(file.path)
           .outputOptions([`-vf crop=${cropSize},scale=112:112`])
           .saveToFile(`${file.path}.112.webp`)
@@ -328,7 +327,7 @@ export class FilesService {
             })
           })
       }),
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(file.path)
           .outputOptions([`-vf crop=${cropSize},scale=40:40`])
           .saveToFile(`${file.path}.40.webp`)
@@ -345,7 +344,7 @@ export class FilesService {
             })
           })
       }),
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(file.path)
           .outputOptions([`-vf crop=${cropSize},scale=34:34`])
           .saveToFile(`${file.path}.34.webp`)
@@ -380,7 +379,7 @@ export class FilesService {
       )}`
     }
     return Promise.all([
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(path)
           .outputOptions([`-vf crop=${cropSize},scale=1600:900`])
           .saveToFile(`${path}.banner.webp`)
@@ -397,7 +396,7 @@ export class FilesService {
             })
           })
       }),
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(path)
           .outputOptions([`-vf crop=${cropSize},scale=320:180`])
           .saveToFile(`${path}.320.webp`)
@@ -421,7 +420,7 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     return Promise.all([
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(path)
           .outputOptions([`-vf scale=256:256`])
           .saveToFile(`${path}.sticker.webp`)
@@ -438,7 +437,7 @@ export class FilesService {
             })
           })
       }),
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(path)
           .outputOptions([`-vf scale=128:128`])
           .saveToFile(`${path}.128.webp`)
@@ -455,7 +454,7 @@ export class FilesService {
             })
           })
       }),
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(path)
           .outputOptions([`-vf scale=64:64`])
           .saveToFile(`${path}.64.webp`)
@@ -472,7 +471,7 @@ export class FilesService {
             })
           })
       }),
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(path)
           .outputOptions([`-vf scale=32:32`])
           .saveToFile(`${path}.32.webp`)
@@ -509,7 +508,7 @@ export class FilesService {
       )}`
     }
     return Promise.all([
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(path)
           .outputOptions([`-vf crop=${cropSize},scale=-1:48`])
           .saveToFile(`${path}.emoji.webp`)
@@ -526,7 +525,7 @@ export class FilesService {
             })
           })
       }),
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(path)
           .outputOptions([`-vf crop=${cropSize},scale=-1:22`])
           .saveToFile(`${path}.22.webp`)
@@ -550,7 +549,7 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     return Promise.all([
-      new Promise((resolve, reject) => {
+      new Promise((resolve) => {
         ffmpeg(path)
           .outputOptions([
             '-c:a libopus',

@@ -15,14 +15,14 @@ import { MessageResponse } from './responses/message.response'
 import { Invite } from './../invites/schemas/invite.schema'
 import { AccessToken } from './../../interfaces/access-token.interface'
 import { GetChannelMessagesDto } from './dto/get-channel-messages.dto'
-import { FollowChannelDto } from './dto/follow-channel.dto'
+// import { FollowChannelDto } from './dto/follow-channel.dto'
 import { CreateInviteDto } from './dto/create-invite.dto'
-import { OverwritePermissionsDto } from './dto/overwrite-permissions.dto'
+// import { OverwritePermissionsDto } from './dto/overwrite-permissions.dto'
 import { BulkDeleteDto } from './dto/bulk-delete.dto'
 import { EditMessageDto } from './dto/edit-message.dto'
 import { CreateMessageDto } from './dto/create-message.dto'
 import { ChannelsService } from './channels.service'
-import { AddDMRecipientDto } from './dto/add-dm-recipient.dto'
+// import { AddDMRecipientDto } from './dto/add-dm-recipient.dto'
 
 @Controller('channels')
 export class ChannelsController {
@@ -33,10 +33,10 @@ export class ChannelsController {
     return await this.channelsService.getChannel(channelId)
   }
 
-  @Delete(':channelId')
+  /*@Delete(':channelId')
   async delete(@Param('channelId') channelId) {
     return await this.channelsService.deleteChannel(channelId)
-  }
+  }*/
 
   @Get(':channelId/messages')
   async messages(
@@ -77,7 +77,7 @@ export class ChannelsController {
     )
   }
 
-  @Post(':channelId/messages/:messageId/crosspost')
+  /*@Post(':channelId/messages/:messageId/crosspost')
   async crosspost(@Param() params) {
     return await this.channelsService.crosspostMessage(
       params.channelId,
@@ -135,7 +135,7 @@ export class ChannelsController {
       params.channelId,
       params.messageId,
     )
-  }
+  }*/
 
   @Patch(':channelId/messages/:messageId')
   async editMessage(
@@ -174,7 +174,7 @@ export class ChannelsController {
     )
   }
 
-  @Put(':channelId/permissions/:overwriteId')
+  /*@Put(':channelId/permissions/:overwriteId')
   async editPermissions(
     @Param() params,
     @Body() overwritePermissionsDto: OverwritePermissionsDto,
@@ -183,7 +183,7 @@ export class ChannelsController {
       params.channelId,
       overwritePermissionsDto,
     )
-  }
+  }*/
 
   @Get(':channelId/invites')
   async getInvites(@Param('channelId') channelId): Promise<Invite[]> {
@@ -203,13 +203,13 @@ export class ChannelsController {
     )
   }
 
-  @Post(':channelId/followers')
+  /*@Post(':channelId/followers')
   async followChannel(
     @Param('channelId') channelId,
     @Body() followChannelDto: FollowChannelDto,
   ) {
     return await this.channelsService.followChannel(channelId, followChannelDto)
-  }
+  }*/
 
   @Post(':channelId/typing')
   async typing(@Param('channelId') channelId, @DUser() user: AccessToken) {
@@ -245,20 +245,20 @@ export class ChannelsController {
     return await this.channelsService.getPinnedMessages(channelId, user.id)
   }
 
-  @Put(':channelId/recipients/:userId')
+  /*@Put(':channelId/recipients/:userId')
   async addRecipient(@Param() params, dto: AddDMRecipientDto) {
     return await this.channelsService.addRecipient(
       params.channelId,
       params.userId,
     )
-  }
+  }*/
 
-  @Delete(':channelId/recipients/:userId')
+  /*@Delete(':channelId/recipients/:userId')
   async removeRecipient(@Param() params) {
     return await this.channelsService.removeRecipient(
       params.channelId,
       params.userId,
     )
-  }
+  }*/
   //Патом треды воткнуть
 }
