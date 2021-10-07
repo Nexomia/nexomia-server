@@ -55,11 +55,17 @@ export enum FileType {
   AVATAR = 2,
   BANNER = 3,
   BACKGROUND = 4,
+  STICKER = 5,
+  EMOJI = 6,
+  VOICE = 7,
 }
 export const AllowedFileExtensions = {
   AVATAR: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
   BANNER: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
   BACKGROUND: ['png', 'jpg', 'jpeg', 'webp'],
+  STICKER: ['png', 'gif', 'webp'],
+  EMOJI: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+  VOICE: ['ogg', 'wav'],
 }
 
 export const FileSchema = SchemaFactory.createForClass(File)
