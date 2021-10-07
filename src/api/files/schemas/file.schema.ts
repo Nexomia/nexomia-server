@@ -3,9 +3,11 @@ import { Document } from 'mongoose'
 
 export type FileDocument = File & Document
 
-export class Permissions {
-  allow: number
-  deny: number
+export class FileData {
+  name: string
+  preview_url?: string
+  width?: number
+  height?: number
 }
 
 export class VK {
@@ -38,9 +40,6 @@ export class File {
   file_server: number
 
   @Prop()
-  vk: VK
-
-  @Prop()
   owner_id: string
 
   @Prop()
@@ -49,10 +48,10 @@ export class File {
   @Prop({ default: false })
   saved: boolean
 
+  @Prop()
+  data: FileData
+
   url: string
-  preview: string
-  width: number
-  height: number
 }
 
 export enum FileServer {
@@ -65,10 +64,17 @@ export enum FileType {
   AVATAR = 2,
   BANNER = 3,
   BACKGROUND = 4,
+  STICKER = 5,
+  EMOJI = 6,
+  VOICE = 7,
 }
 export const AllowedFileExtensions = {
   AVATAR: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
   BANNER: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
   BACKGROUND: ['png', 'jpg', 'jpeg', 'webp'],
+  STICKER: ['png', 'gif', 'webp'],
+  EMOJI: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+  VOICE: ['ogg', 'wav'],
 }
+
 export const FileSchema = SchemaFactory.createForClass(File)

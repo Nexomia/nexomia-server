@@ -49,9 +49,14 @@ const MessageAttachmentSchema = myzod.object({
   mime_type: myzod.string(),
   size: myzod.number(),
   url: myzod.string(),
-  preview: myzod.string().optional(),
-  width: myzod.number().optional(),
-  height: myzod.number().optional(),
+  data: myzod
+  .object({
+    width: myzod.number(),
+    height: myzod.number(),
+    preview_url: myzod.string(),
+  })
+  .allowUnknownKeys()
+  .optional(),
 })
 
 export type MessageAttachment = Infer<typeof MessageAttachmentSchema>

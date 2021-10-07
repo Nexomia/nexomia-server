@@ -9,7 +9,14 @@ const FileResponseSchema = myzod.object({
   size: myzod.number(),
   owner_id: myzod.string(),
   url: myzod.string(),
-  preview: myzod.string().optional(),
+  data: myzod
+    .object({
+      width: myzod.number(),
+      height: myzod.number(),
+      preview_url: myzod.string(),
+    })
+    .allowUnknownKeys()
+    .optional(),
 })
 
 export type FileResponse = Infer<typeof FileResponseSchema>

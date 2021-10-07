@@ -1030,9 +1030,9 @@ export class ChannelsService {
     if (message.attachment_ids.length) {
       for (const att of message.attachments_compiled) {
         if (att.file_server === FileServer.SELECTEL) {
-          att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
-            att.name,
-          )}`
+          att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(att.name)}`
+          if (att.data)
+            att.data.preview_url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(att.data.name)}`
         }
         message.attachments.push(MessageAttachmentValidate(att))
       }
