@@ -9,6 +9,8 @@ import {
 import { Model } from 'mongoose'
 import axios from 'axios'
 import fs from 'promise-fs'
+import ffmpegPath from 'ffmpeg-static'
+import ffprobePath from 'ffprobe-static'
 import ffmpeg from 'fluent-ffmpeg'
 import {
   File,
@@ -22,7 +24,10 @@ import { FileResponseValidate } from './responses/file.response'
 
 @Injectable()
 export class FilesService {
-  constructor(@InjectModel(File.name) private fileModel: Model<FileDocument>) {}
+  constructor(@InjectModel(File.name) private fileModel: Model<FileDocument>) {
+    ffmpeg().setFfmpegPath(ffmpegPath)
+    ffmpeg().setFfprobePath(ffprobePath.path)
+  }
 
   /*async getFile(fileId, fileName, res, preview?) {
     const file = await this.fileModel.findOne({ id: fileId, name: fileName })
@@ -150,7 +155,9 @@ export class FilesService {
       file.size = sticker[0].size
       file.mime_type = sticker[0].mime
     } else if (file.type === FileType.VOICE) {
-      const voice = await this.compressAndUploadVoice(file.id, multerFile.path)
+      const voice = await this.checkAndUploadVoice(file.id, multerFile.path)
+      console.log(voice)
+      if (!voice) throw new BadRequestException()
       file.name = voice[0].name
       file.size = voice[0].size
       file.mime_type = voice[0].mime
@@ -544,26 +551,29 @@ export class FilesService {
       }),
     ])
   }
-  private compressAndUploadVoice = async (
+  private checkAndUploadVoice = async (
     fileId: string,
     path: string,
   ): Promise<UploadData[]> => {
     return Promise.all([
-      new Promise((resolve) => {
+      new Promise((resolve, reject) => {
         ffmpeg(path)
           .outputOptions([
-            '-c:a libopus',
+            '-c:a copy',
             '-b:a 32k',
             '-vbr on',
             '-compression_level 10',
           ])
-          .saveToFile(`${path}.voice.ogg`)
+          .saveToFile(`${path}.voice.opus`)
+          .on('error', () => {
+            reject(false)
+          })
           .on('end', async () => {
             const data = {
-              name: 'voice.ogg',
-              mime: 'audio/ogg',
-              size: (await fs.stat(`${path}.voice.ogg`)).size,
-              path: `${path}.voice.ogg`,
+              name: 'voice.opus',
+              mime: 'audio/opus',
+              size: (await fs.stat(`${path}.voice.opus`)).size,
+              path: `${path}.voice.opus`,
             }
             this.uploadToServer(fileId, data).then(async () => {
               fs.unlink(data.path)

@@ -74,7 +74,7 @@ export const AllowedFileExtensions = {
   BACKGROUND: ['png', 'jpg', 'jpeg', 'webp'],
   STICKER: ['png', 'gif', 'webp'],
   EMOJI: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
-  VOICE: ['ogg', 'wav'],
+  VOICE: ['opus'],
 }
 
 export const FileSchema = SchemaFactory.createForClass(File)
