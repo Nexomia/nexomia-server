@@ -1,16 +1,14 @@
 import {
-  Body,
   Controller,
   Get,
   Param,
   Post,
-  Put,
   Query,
   Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common'
-import { DUser } from 'src/decorators/user.decorator'
+import { DUser } from 'decorators/user.decorator'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { AccessToken } from './../../interfaces/access-token.interface'
 import { FilesService } from './files.service'

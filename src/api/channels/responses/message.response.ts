@@ -1,7 +1,7 @@
-import { FileDocument } from './../../files/schemas/file.schema'
-import { User } from 'src/api/users/schemas/user.schema'
-import { Message, Attachment } from './../schemas/message.schema'
+import { User } from 'api/users/schemas/user.schema'
 import myzod, { Infer } from 'myzod'
+import { FileDocument } from './../../files/schemas/file.schema'
+import { Message } from './../schemas/message.schema'
 
 const MessageResponseSchema = myzod.object({
   id: myzod.string(),

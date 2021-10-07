@@ -10,6 +10,15 @@ export class FileData {
   height?: number
 }
 
+export class VK {
+  file_id: string
+  file_url: string
+  file_url_updated: number
+  file_width: number
+  file_heigth: number
+  file_preview: string
+}
+
 @Schema({ versionKey: false })
 export class File {
   @Prop({ unique: true })

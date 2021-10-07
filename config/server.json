@@ -1,0 +1,32 @@
+{
+  "production": false,
+  "domain": "localhost:7081",
+  "port": 7081,
+  "db": "mongodb://nexomiaDev:deNewOxima1202@mongo:27017/NexomiaNew",
+  "salt": "6639d7dbd5068884af2287811e1c58f29c9ef88bfecba064189a2cc1e62edd654eabfde3654e572c11c7e5ca7dc5c01a283dffb995cdc521393943ed77450c97",
+  "jwt": {
+    "secret": "048385bb53e0c15acf9e7c09dd44a313556372cb9dd7cedc12dc12a21f13128713224fdebe12ceb987ae6bf38a160331dbee72f338cd470586bdcd9b9ff7ffec",
+    "refreshTokenSecret": "f8e91c584e62260ab747f8f8b556e0d6d38301c560a810443319973959a8ad8e97206304e3735273ed7045c469ca3624322285ec1022a95a4a16fa673541492c",
+    "accessTokenExpires": "30m",
+    "refreshTokenExpires": "30d",
+    "emailTokenExpires": "15m"
+  },
+  "smtp": {
+    "host": "smtp.mail.ru",
+    "port": 465,
+    "secure": true,
+    "auth": {
+      "user": "nexo@d3s.ru",
+      "pass": "+0D7sBzsThLd"
+    }
+  },
+  "snowflake": {
+    "returnNumber": true,
+    "customEpoch": 1623019965000
+  },
+  "selectel": {
+    "container": "nexomia",
+    "user": "132062",
+    "pass": "V/j^77xgBW"
+  }
+}

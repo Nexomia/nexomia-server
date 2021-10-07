@@ -1,6 +1,6 @@
-import { User } from './../../users/schemas/user.schema';
-import { Guild } from 'src/api/guilds/schemas/guild.schema';
-import myzod, { Infer } from 'myzod';
+import { Guild } from 'api/guilds/schemas/guild.schema'
+import myzod, { Infer } from 'myzod'
+import { User } from './../../users/schemas/user.schema'
 
 const GuildResponseSchema = myzod.object({
   id: myzod.string(),
@@ -20,12 +20,14 @@ const GuildResponseSchema = myzod.object({
   preferred_locale: myzod.string().optional(),
   nsfw: myzod.boolean().optional(),
   channels: myzod.unknown().optional(),
-  roles: myzod.unknown().optional()
+  roles: myzod.unknown().optional(),
 })
 
-export type GuildResponse = Infer<typeof GuildResponseSchema>;
+export type GuildResponse = Infer<typeof GuildResponseSchema>
 
-export const GuildResponseValidate = (guild: Guild) => { return<GuildResponse> GuildResponseSchema.allowUnknownKeys().parse(guild) }
+export const GuildResponseValidate = (guild: Guild) => {
+  return <GuildResponse>GuildResponseSchema.allowUnknownKeys().parse(guild)
+}
 
 const MemberUserResponseSchema = myzod.object({
   id: myzod.string(),
@@ -34,6 +36,8 @@ const MemberUserResponseSchema = myzod.object({
   avatar: myzod.string().optional(),
 })
 
-export type MemberResponse = Infer<typeof MemberUserResponseSchema>;
+export type MemberResponse = Infer<typeof MemberUserResponseSchema>
 
-export const MemberUserResponseValidate = (user: User) => { return<MemberResponse> MemberUserResponseSchema.allowUnknownKeys().parse(user) }
+export const MemberUserResponseValidate = (user: User) => {
+  return <MemberResponse>MemberUserResponseSchema.allowUnknownKeys().parse(user)
+}

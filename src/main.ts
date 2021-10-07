@@ -1,12 +1,14 @@
-import { WsAdapter } from '@nestjs/platform-ws';
-import { config } from './app.config';
-import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-const Fingerprint = require('express-fingerprint');
+import { WsAdapter } from '@nestjs/platform-ws'
+import { ValidationPipe } from '@nestjs/common'
+import { NestFactory } from '@nestjs/core'
+import Fingerprint from 'express-fingerprint'
+import { AppModule } from './app.module'
+import { config, loadConfig } from './app.config'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: process.env.NODE_ENV === 'prod' ? false : true }) 
+  const app = await NestFactory.create(AppModule, {
+    cors: process.env.NODE_ENV !== 'prod',
+  })
   app.setGlobalPrefix('api')
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }))
   app.use(Fingerprint())
@@ -14,4 +16,5 @@ async function bootstrap() {
   await app.listen(config.port)
   console.log('started')
 }
-bootstrap()
+
+loadConfig().then(bootstrap)

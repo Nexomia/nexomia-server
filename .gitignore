@@ -33,8 +33,9 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Configs
-/src/app.config.ts
-
 # Upload Dir
 /upload
+
+config.js*
+
+*.tsbuildinfo

@@ -2,6 +2,7 @@ import { UniqueID } from 'nodejs-snowflake'
 import { InjectModel } from '@nestjs/mongoose'
 import {
   Injectable,
+  InternalServerErrorException,
   PayloadTooLargeException,
   BadRequestException,
   ForbiddenException,

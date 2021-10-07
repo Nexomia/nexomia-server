@@ -1,4 +1,4 @@
-import { IsBoolean, IsNumber, IsOptional } from "class-validator";
+import { IsBoolean, IsNumber, IsOptional } from 'class-validator'
 
 export class CreateInviteDto {
   /**
@@ -6,26 +6,26 @@ export class CreateInviteDto {
    */
   @IsOptional()
   @IsNumber()
-  max_age?: number;
+  max_age?: number
 
   /**
    * Max number of uses or 0 for unlimited. between 0 and 100
    */
   @IsOptional()
   @IsNumber()
-  max_uses?: number;
+  max_uses?: number
 
   /**
    * Whether this invite only grants temporary membership
    */
   @IsOptional()
   @IsBoolean()
-  temporary?: boolean;
+  temporary?: boolean
 
   /**
    * If true, don't try to reuse a similar invite (useful for creating many unique one time use invites)
    */
   @IsOptional()
   @IsBoolean()
-  unique?: boolean;
+  unique?: boolean
 }
