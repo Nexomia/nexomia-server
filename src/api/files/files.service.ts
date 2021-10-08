@@ -558,12 +558,7 @@ export class FilesService {
     return Promise.all([
       new Promise((resolve, reject) => {
         ffmpeg(path)
-          .outputOptions([
-            '-c:a copy',
-            '-b:a 32k',
-            '-vbr on',
-            '-compression_level 10',
-          ])
+          .outputOptions(['-c:a copy'])
           .saveToFile(`${path}.voice.opus`)
           .on('error', () => {
             reject(false)
