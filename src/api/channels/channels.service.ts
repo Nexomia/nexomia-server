@@ -1074,7 +1074,7 @@ export class ChannelsService {
         message.attachments.push(MessageAttachmentValidate(att))
       }
     }
-    if (message.reaction_ids.length) {
+    if (message.reaction_ids && message.reaction_ids.length > 0) {
       message.reactions.forEach((reaction, index) => {
         const emojiIndex = message.emojis_compiled.findIndex(
           (em) => em.id === reaction.emoji_id,
