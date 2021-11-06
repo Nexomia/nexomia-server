@@ -32,7 +32,7 @@ export const EmojiPackResponseSchema = myzod.object({
   description: myzod.string().optional(),
   icon: myzod.string().optional(),
   owner_id: myzod.string(),
-  owner: EmojiPackOwnerResponseSchema.allowUnknownKeys(),
+  owner: EmojiPackOwnerResponseSchema.allowUnknownKeys().optional(),
   stats: myzod
     .object({
       users: myzod.number(),
