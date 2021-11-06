@@ -51,9 +51,10 @@ const MessageAttachmentSchema = myzod.object({
   url: myzod.string(),
   data: myzod
     .object({
-      width: myzod.number(),
-      height: myzod.number(),
-      preview_url: myzod.string(),
+      width: myzod.number().optional(),
+      height: myzod.number().optional(),
+      preview_url: myzod.string().optional(),
+      animated: myzod.boolean().optional(),
     })
     .allowUnknownKeys()
     .optional(),

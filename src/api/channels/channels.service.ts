@@ -13,7 +13,6 @@ import { Model } from 'mongoose'
 import { UniqueID } from 'nodejs-snowflake'
 import { ParserUtils } from 'utils/parser/parser.utils'
 import emojiRegex from 'emoji-regex'
-import { File, FileDocument } from '../files/schemas/file.schema'
 import { EmojiResponseValidate } from './../emojis/responses/emoji.response'
 import {
   EmojiPack,
@@ -22,7 +21,12 @@ import {
 } from './../emojis/schemas/emojiPack.schema'
 import { config } from './../../app.config'
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema'
-import { FileServer, FileType } from './../files/schemas/file.schema'
+import {
+  File,
+  FileServer,
+  FileType,
+  FileDocument,
+} from './../files/schemas/file.schema'
 import { GuildsService } from './../guilds/guilds.service'
 import { ComputedPermissions } from './../guilds/schemas/role.schema'
 import { Invite, InviteDocument } from './../invites/schemas/invite.schema'
@@ -143,6 +147,17 @@ export class ChannelsService {
         },
       },
       {
+        $addFields: {
+          fwd_atch_ids: {
+            $map: {
+              input: '$forwarded_compiled',
+              as: 'fwd',
+              in: '$$fwd.attachment_ids',
+            },
+          },
+        },
+      },
+      {
         $lookup: {
           from: 'users',
           localField: 'author',
@@ -181,6 +196,22 @@ export class ChannelsService {
         },
       },
     ])
+    let att_ids = []
+    data.map((mess) => {
+      if (mess.fwd_atch_ids.length) {
+        att_ids = att_ids.concat(mess.fwd_atch_ids[0])
+      }
+    })
+    const compiled_atts = await this.fileModel.find({ id: { $in: att_ids } })
+    data.map((mess) => {
+      if (mess.fwd_atch_ids.length) {
+        mess.forwarded_compiled_attachments = []
+        for (const aid of mess.fwd_atch_ids[0]) {
+          const attIndex = compiled_atts.findIndex((att) => att.id == aid)
+          mess.forwarded_compiled_attachments.push(compiled_atts[attIndex])
+        }
+      }
+    })
     if (!data.length && one) throw new NotFoundException()
     if (one && filters?.ids.length === 1) return this.parseMessage(data[0])
 
@@ -301,28 +332,21 @@ export class ChannelsService {
       })
       for (const att of attachments) message.attachment_ids.push(att.id)
     }
-    let forwarded_compiled_attachments: FileDocument[] = []
-    if (forwarded_messages_attachment_ids.length)
-      forwarded_compiled_attachments = await this.fileModel.find({
-        id: forwarded_messages_attachment_ids,
-      })
     await message.save()
-    const message2 = <AgreggatedMessage>Object.assign(message.toObject(), {
-      forwarded_compiled: forwarded_messages,
-      userObject: (await this.userModel.findOne({ id: userId })).toObject(),
-      forwarded_compiled_users: await this.userModel.find({
-        id: forwarded_messages_users_ids,
-      }),
-      forwarded_compiled_attachments,
-      attachments_compiled: attachments,
-    })
-    const cleanedMessage = this.parseMessage(message2)
+    const message2 = <MessageResponse>(
+      await this.getChannelMessages(
+        message.channel_id,
+        { ids: [message.id] },
+        userId,
+        true,
+      )
+    )
     const data = {
       event: 'message.created',
-      data: cleanedMessage,
+      data: message2,
     }
     this.eventEmitter.emit('message.created', data, channel?.guild_id)
-    return cleanedMessage
+    return message2
   }
 
   // async crosspostMessage(channelId, messageId) {}
@@ -582,16 +606,19 @@ export class ChannelsService {
     message.edit_time = Date.now()
     message.edit_history.push(cachedMessage)
     await message.save()
-    const message2 = <AgreggatedMessage>Object.assign(message.toObject(), {
-      forwarded_compiled: forwarded_messages,
-    })
-    const cleanedMessage = this.parseMessage(message2)
+    const message2 = await this.getChannelMessages(
+      message.channel_id,
+      { ids: [message.id] },
+      userId,
+      true,
+    )
+
     const data = {
       event: 'message.edited',
-      data: cleanedMessage,
+      data: message2,
     }
     this.eventEmitter.emit('message.edited', data, channel?.guild_id)
-    return cleanedMessage
+    return message2
   }
 
   async deleteMessage(channelId, messageId, userId): Promise<void> {
@@ -1029,29 +1056,16 @@ export class ChannelsService {
         )
 
         message.forwarded_compiled[i].attachments = []
-        if (message.forwarded_compiled[i].attachment_ids.length) {
-          for (const i in message.attachments_compiled) {
-            const index = message.forwarded_compiled_attachments.findIndex(
-              (att) => att.id === message.attachments_compiled[i].id,
-            )
-            if (
-              message.forwarded_compiled_attachments[index].file_server ===
-              FileServer.SELECTEL
-            ) {
-              message.forwarded_compiled_attachments[
-                index
-              ].url = `https://cdn.nx.wtf/${
-                message.forwarded_compiled_attachments[index].id
-              }/${this.parser.encodeURI(
-                message.forwarded_compiled_attachments[index].name,
-              )}`
-            }
+        if (message.forwarded_compiled_attachments.length) {
+          console.log(message.forwarded_compiled_attachments)
+          message.forwarded_compiled_attachments.map((att) => {
+            att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
+              att.name,
+            )}`
             message.forwarded_compiled[i].attachments.push(
-              MessageAttachmentValidate(
-                message.forwarded_compiled_attachments[index],
-              ),
+              MessageAttachmentValidate(att),
             )
-          }
+          })
         }
 
         message.forwarded_messages.push(
@@ -1062,15 +1076,13 @@ export class ChannelsService {
     message.attachments = []
     if (message.attachment_ids.length) {
       for (const att of message.attachments_compiled) {
-        if (att.file_server === FileServer.SELECTEL) {
-          att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
-            att.name,
-          )}`
-          if (att.data)
-            att.data.preview_url = `https://cdn.nx.wtf/${
-              att.id
-            }/${this.parser.encodeURI(att.data.name)}`
-        }
+        att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
+          att.name,
+        )}`
+        if (att.data)
+          att.data.preview_url = `https://cdn.nx.wtf/${
+            att.id
+          }/${this.parser.encodeURI(att.data.name)}`
         message.attachments.push(MessageAttachmentValidate(att))
       }
     }
@@ -1097,6 +1109,7 @@ export class ChannelsService {
   }
 }
 class AgrMessage {
+  fwd_atch_ids: string[]
   user: UserResponse
   userObject: User
   forwarded_compiled_users: UserDocument[]
