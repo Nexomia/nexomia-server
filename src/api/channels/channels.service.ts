@@ -1062,6 +1062,10 @@ export class ChannelsService {
             att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
               att.name,
             )}`
+            if (att?.data?.width)
+              att.data.preview_url = `https://cdn.nx.wtf/${
+                att.id
+              }/${this.parser.encodeURI(att.data.name)}`
             message.forwarded_compiled[i].attachments.push(
               MessageAttachmentValidate(att),
             )
@@ -1079,7 +1083,7 @@ export class ChannelsService {
         att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
           att.name,
         )}`
-        if (att.data)
+        if (att?.data?.width)
           att.data.preview_url = `https://cdn.nx.wtf/${
             att.id
           }/${this.parser.encodeURI(att.data.name)}`
