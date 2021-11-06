@@ -15,7 +15,7 @@ import {
 } from '@nestjs/websockets'
 import { Cache } from 'cache-manager'
 import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter'
-import { Parser } from 'utils/parser/parser.utils'
+import { ParserUtils } from 'utils/parser/parser.utils'
 import { config } from '../app.config'
 import { JwtService } from '../utils/jwt/jwt.service'
 import { UsersService } from '../api/users/users.service'
@@ -32,7 +32,7 @@ export class AppGateway
   constructor(
     private jwtService: JwtService,
     private userService: UsersService,
-    private parser: Parser,
+    private parser: ParserUtils,
     private eventEmitter: EventEmitter2,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
   ) {}

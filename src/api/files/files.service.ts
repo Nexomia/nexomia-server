@@ -93,95 +93,50 @@ export class FilesService {
           ].join(', '),
       )
 
-    const mimetype = multerFile.mimetype.split('/')[0]
-
-    let preview: FilePreview
+    let uplData: UploadData[]
     if (file.type === FileType.ATTACHMENT) {
-      file.name = multerFile.originalname
-      if (['video', 'image', 'audio'].includes(mimetype)) {
-        preview = (
-          await Promise.all([
-            this.uploadToServer(file.id, {
-              mime: multerFile.mimetype,
-              name: multerFile.originalname,
-              size: multerFile.size,
-              path: multerFile.path,
-            }),
-            this.getAndUploadPreview(file.id, multerFile),
-          ])
-        )[1]
-      } else {
-        await this.uploadToServer(file.id, {
-          mime: multerFile.mimetype,
-          name: multerFile.originalname,
-          size: multerFile.size,
-          path: multerFile.path,
-        })
-      }
+      uplData = await this.uploadAttachment(file.id, multerFile)
     } else if (file.type === FileType.AVATAR) {
-      const avatarData = await this.getFileData(multerFile.path)
-      if (
-        avatarData.streams[0].width < 256 ||
-        avatarData.streams[0].height < 256
-      ) {
-        await fs.unlink(multerFile.path)
-        throw new BadRequestException('Avatar must be at least 256x256')
-      }
-      const avatar = await this.cropAndUploadAvatar(file.id, multerFile)
-      file.name = avatar[0].name
-      file.size = avatar[0].size
-      file.mime_type = avatar[0].mime
+      uplData = await this.cropAndUploadAvatar(file.id, multerFile.path)
     } else if (file.type === FileType.BANNER) {
-      const bannerData = await this.getFileData(multerFile.path)
-      if (
-        bannerData.streams[0].width < 1600 ||
-        bannerData.streams[0].height < 900
-      ) {
-        await fs.unlink(multerFile.path)
-        throw new BadRequestException('Banner must be at least 1600x900')
-      }
-      const banner = await this.cropAndUploadBanner(file.id, multerFile.path)
-      file.name = banner[0].name
-      file.size = banner[0].size
-      file.mime_type = banner[0].mime
+      uplData = await this.cropAndUploadBanner(file.id, multerFile.path)
     } else if (file.type === FileType.EMOJI) {
-      const emoji = await this.scaleAndUploadEmoji(file.id, multerFile.path)
-      file.name = emoji[0].name
-      file.size = emoji[0].size
-      file.mime_type = emoji[0].mime
+      uplData = await this.scaleAndUploadEmoji(file.id, multerFile.path)
     } else if (file.type === FileType.STICKER) {
-      const sticker = await this.scaleAndUploadSticker(file.id, multerFile.path)
-      file.name = sticker[0].name
-      file.size = sticker[0].size
-      file.mime_type = sticker[0].mime
+      uplData = await this.scaleAndUploadSticker(file.id, multerFile.path)
     } else if (file.type === FileType.VOICE) {
-      const voice = await this.checkAndUploadVoice(file.id, multerFile.path)
-      console.log(voice)
-      if (!voice) throw new BadRequestException()
-      file.name = voice[0].name
-      file.size = voice[0].size
-      file.mime_type = voice[0].mime
+      uplData = await this.checkAndUploadVoice(file.id, multerFile.path)
     }
     await fs.unlink(multerFile.path)
-    if (preview)
-      file.data = {
-        name: preview.name,
-        width: preview.width,
-        height: preview.height,
-      }
+    if (uplData[0].error) throw new BadRequestException(uplData[0].error)
+    console.log(uplData[0])
 
-    file.mime_type = file.mime_type ? file.mime_type : multerFile.mimetype
-    file.size = file.size ? file.size : multerFile.size
+    file.name = uplData[0].name
+    file.mime_type = uplData[0].mime
+    file.size = uplData[0].size
+
+    if (uplData[0].preview) {
+      file.data = {
+        name: uplData[0].preview.name,
+        width: uplData[0].preview.width,
+        height: uplData[0].preview.height,
+      }
+      file.markModified('data')
+    }
+    if (uplData[0].animated) {
+      if (!file.data) file.data = {}
+      file.data.animated = true
+      file.markModified('data')
+    }
     file.saved = true
-    file.markModified('data')
     await file.save()
 
     const extendedFile = file.toObject()
     extendedFile.url = `https://cdn.nx.wtf/${
       file.id
     }/${this.fixedEncodeURIComponent(file.name)}`
-    if (preview)
-      extendedFile.data.preview_url = `https://cdn.nx.wtf/${file.id}/${preview.name}`
+    if (file.data?.name)
+      extendedFile.data.preview_url = `https://cdn.nx.wtf/${file.id}/${file.data.name}`
 
     return FileResponseValidate(extendedFile)
   }
@@ -189,9 +144,9 @@ export class FilesService {
   async getFileInfo(fileId): Promise<File> {
     const file = await this.fileModel.findOne({ id: fileId })
     const extendedFile = file.toObject()
-    extendedFile.url = `https://cdn.nx.wtf/${
-      file.id
-    }/${this.fixedEncodeURIComponent(file.name)}`
+    extendedFile.url =
+      'https://cdn.nx.wtf/' +
+      `${file.id}/${this.fixedEncodeURIComponent(file.name)}`
     if (file.data)
       extendedFile.data.preview_url = `https://cdn.nx.wtf/${file.id}/${file.data.name}`
 
@@ -290,80 +245,107 @@ export class FilesService {
     return fileData
   }
 
-  private cropAndUploadAvatar = async (
+  private uploadAttachment = async (
     fileId: string,
     file: Express.Multer.File,
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(file.path)
+    let animated = false
+    if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
+    const data: UploadData = {
+      mime: file.mimetype,
+      name: file.originalname,
+      size: file.size,
+      path: file.path,
+      animated,
+    }
+    const files = await Promise.all([
+      this.uploadToServer(fileId, data),
+      this.getAndUploadPreview(fileId, file),
+    ])
+    if (files[1]) data.preview = files[1]
+    return [data]
+  }
+
+  private cropAndUploadAvatar = async (
+    fileId: string,
+    path: string,
+  ): Promise<UploadData[]> => {
+    const fileInfo = await this.getFileData(path)
+    if (fileInfo.streams[0].width < 256 || fileInfo.streams[0].height < 256)
+      throw new BadRequestException()
+    let animated = false
+    if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     const cropSize =
       fileInfo.streams[0].width > fileInfo.streams[0].height
         ? `${fileInfo.streams[0].height}:${fileInfo.streams[0].height}`
         : `${fileInfo.streams[0].width}:${fileInfo.streams[0].width}`
     return Promise.all([
       new Promise((resolve) => {
-        ffmpeg(file.path)
+        ffmpeg(path)
           .outputOptions([`-vf crop=${cropSize},scale=256:256`])
-          .saveToFile(`${file.path}.256.webp`)
+          .saveToFile(`${path}.256.webp`)
           .on('end', async () => {
             const data = {
               name: 'avatar.webp',
               mime: 'image/webp',
-              size: (await fs.stat(`${file.path}.256.webp`)).size,
-              path: `${file.path}.256.webp`,
+              size: (await fs.stat(`${path}.256.webp`)).size,
+              path: `${path}.256.webp`,
+              animated,
             }
             this.uploadToServer(fileId, data).then(async () => {
-              fs.unlink(`${file.path}.256.webp`)
+              fs.unlink(`${path}.256.webp`)
               resolve(data)
             })
           })
       }),
       new Promise((resolve) => {
-        ffmpeg(file.path)
+        ffmpeg(path)
           .outputOptions([`-vf crop=${cropSize},scale=112:112`])
-          .saveToFile(`${file.path}.112.webp`)
+          .saveToFile(`${path}.112.webp`)
           .on('end', async () => {
             const data = {
               name: 'avatar_112.webp',
               mime: 'image/webp',
-              size: (await fs.stat(`${file.path}.112.webp`)).size,
-              path: `${file.path}.112.webp`,
+              size: (await fs.stat(`${path}.112.webp`)).size,
+              path: `${path}.112.webp`,
             }
             this.uploadToServer(fileId, data).then(async () => {
-              fs.unlink(`${file.path}.112.webp`)
+              fs.unlink(`${path}.112.webp`)
               resolve(data)
             })
           })
       }),
       new Promise((resolve) => {
-        ffmpeg(file.path)
+        ffmpeg(path)
           .outputOptions([`-vf crop=${cropSize},scale=40:40`])
-          .saveToFile(`${file.path}.40.webp`)
+          .saveToFile(`${path}.40.webp`)
           .on('end', async () => {
             const data = {
               name: 'avatar_40.webp',
               mime: 'image/webp',
-              size: (await fs.stat(`${file.path}.40.webp`)).size,
-              path: `${file.path}.40.webp`,
+              size: (await fs.stat(`${path}.40.webp`)).size,
+              path: `${path}.40.webp`,
             }
             this.uploadToServer(fileId, data).then(async () => {
-              fs.unlink(`${file.path}.40.webp`)
+              fs.unlink(`${path}.40.webp`)
               resolve(data)
             })
           })
       }),
       new Promise((resolve) => {
-        ffmpeg(file.path)
+        ffmpeg(path)
           .outputOptions([`-vf crop=${cropSize},scale=34:34`])
-          .saveToFile(`${file.path}.34.webp`)
+          .saveToFile(`${path}.34.webp`)
           .on('end', async () => {
             const data = {
               name: 'avatar_34.webp',
               mime: 'image/webp',
-              size: (await fs.stat(`${file.path}.34.webp`)).size,
-              path: `${file.path}.34.webp`,
+              size: (await fs.stat(`${path}.34.webp`)).size,
+              path: `${path}.34.webp`,
             }
             this.uploadToServer(fileId, data).then(async () => {
-              fs.unlink(`${file.path}.34.webp`)
+              fs.unlink(`${path}.34.webp`)
               resolve(data)
             })
           })
@@ -375,6 +357,10 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(path)
+    if (fileInfo.streams[0].width < 1600 || fileInfo.streams[0].height < 900)
+      throw new BadRequestException('Banner must be at least 1600x900')
+    let animated = false
+    if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     let cropSize: string
     if (fileInfo.streams[0].width / fileInfo.streams[0].height > 1.77) {
       cropSize = `${Math.round(fileInfo.streams[0].height * 1.78)}:${
@@ -396,6 +382,7 @@ export class FilesService {
               mime: 'image/webp',
               size: (await fs.stat(`${path}.banner.webp`)).size,
               path: `${path}.banner.webp`,
+              animated,
             }
             this.uploadToServer(fileId, data).then(async () => {
               fs.unlink(`${path}.banner.webp`)
@@ -426,10 +413,23 @@ export class FilesService {
     fileId: string,
     path: string,
   ): Promise<UploadData[]> => {
+    const fileInfo = await this.getFileData(path)
+    let animated = false
+    if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
+    let cropSize: string
+    if (fileInfo.streams[0].width === fileInfo.streams[0].height) {
+      cropSize = `${fileInfo.streams[0].width}:${fileInfo.streams[0].height}`
+    } else {
+      const lowerSide =
+        fileInfo.streams[0].width < fileInfo.streams[0].height
+          ? fileInfo.streams[0].width
+          : fileInfo.streams[0].height
+      cropSize = `${lowerSide}:${lowerSide}`
+    }
     return Promise.all([
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf scale=256:256`])
+          .outputOptions([`-vf crop=${cropSize},scale=256:256`])
           .saveToFile(`${path}.sticker.webp`)
           .on('end', async () => {
             const data = {
@@ -437,6 +437,7 @@ export class FilesService {
               mime: 'image/webp',
               size: (await fs.stat(`${path}.sticker.webp`)).size,
               path: `${path}.sticker.webp`,
+              animated,
             }
             this.uploadToServer(fileId, data).then(async () => {
               fs.unlink(`${path}.sticker.webp`)
@@ -446,7 +447,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf scale=128:128`])
+          .outputOptions([`-vf crop=${cropSize},scale=128:128`])
           .saveToFile(`${path}.128.webp`)
           .on('end', async () => {
             const data = {
@@ -463,7 +464,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf scale=64:64`])
+          .outputOptions([`-vf crop=${cropSize},scale=64:64`])
           .saveToFile(`${path}.64.webp`)
           .on('end', async () => {
             const data = {
@@ -480,7 +481,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf scale=32:32`])
+          .outputOptions([`-vf crop=${cropSize},scale=32:32`])
           .saveToFile(`${path}.32.webp`)
           .on('end', async () => {
             const data = {
@@ -502,17 +503,18 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(path)
+    console.log(fileInfo)
+    let animated = false
+    if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     let cropSize: string
     if (fileInfo.streams[0].width === fileInfo.streams[0].height) {
       cropSize = `${fileInfo.streams[0].width}:${fileInfo.streams[0].height}`
-    } else if (fileInfo.streams[0].width / fileInfo.streams[0].height > 1.77) {
-      cropSize = `${Math.round(fileInfo.streams[0].height * 1.78)}:${
-        fileInfo.streams[0].height
-      }`
     } else {
-      cropSize = `${fileInfo.streams[0].width}:${Math.round(
-        fileInfo.streams[0].width / 1.78,
-      )}`
+      const lowerSide =
+        fileInfo.streams[0].width < fileInfo.streams[0].height
+          ? fileInfo.streams[0].width
+          : fileInfo.streams[0].height
+      cropSize = `${lowerSide}:${lowerSide}`
     }
     return Promise.all([
       new Promise((resolve) => {
@@ -525,9 +527,27 @@ export class FilesService {
               mime: 'image/webp',
               size: (await fs.stat(`${path}.emoji.webp`)).size,
               path: `${path}.emoji.webp`,
+              animated,
             }
             this.uploadToServer(fileId, data).then(async () => {
               fs.unlink(`${path}.emoji.webp`)
+              resolve(data)
+            })
+          })
+      }),
+      new Promise((resolve) => {
+        ffmpeg(path)
+          .outputOptions([`-vf crop=${cropSize},scale=-1:32`])
+          .saveToFile(`${path}.32.webp`)
+          .on('end', async () => {
+            const data = {
+              name: 'emoji_32.webp',
+              mime: 'image/webp',
+              size: (await fs.stat(`${path}.32.webp`)).size,
+              path: `${path}.32.webp`,
+            }
+            this.uploadToServer(fileId, data).then(async () => {
+              fs.unlink(`${path}.32.webp`)
               resolve(data)
             })
           })
@@ -560,8 +580,8 @@ export class FilesService {
         ffmpeg(path)
           .outputOptions(['-c:a copy'])
           .saveToFile(`${path}.voice.opus`)
-          .on('error', () => {
-            reject(false)
+          .on('error', async () => {
+            resolve({ error: 'File must be in opus format' })
           })
           .on('end', async () => {
             const data = {
@@ -587,8 +607,11 @@ class FilePreview {
 }
 
 class UploadData {
-  name: string
-  mime: string
-  size: number
-  path: string
+  name?: string
+  mime?: string
+  size?: number
+  path?: string
+  preview?: FilePreview
+  error?: string
+  animated?: boolean
 }

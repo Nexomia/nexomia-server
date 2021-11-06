@@ -4,10 +4,11 @@ import { Document } from 'mongoose'
 export type FileDocument = File & Document
 
 export class FileData {
-  name: string
+  name?: string
   preview_url?: string
   width?: number
   height?: number
+  animated?: boolean
 }
 
 export class VK {

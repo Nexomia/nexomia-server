@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
+import { EmojiPackResponse } from './../../emojis/responses/emojiPack.response'
 import { Fingerprint } from './../../../interfaces/fingerprint.interface'
 
 class Connected {
@@ -131,6 +132,11 @@ export class User extends Connected {
    */
   @Prop({ default: 4 })
   presence?: number
+
+  @Prop()
+  emoji_packs_ids?: string[]
+
+  emoji_packs?: EmojiPackResponse[]
 }
 
 export class RefreshToken {

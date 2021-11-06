@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { MongooseModule } from '@nestjs/mongoose'
+import { EmojisModule } from './api/emojis/emojis.module'
 import { AuthModule } from './api/auth/auth.module'
 import { ChannelsModule } from './api/channels/channels.module'
 import { FilesModule } from './api/files/files.module'
@@ -26,6 +27,7 @@ import { WsModule } from './ws/ws.module'
     InvitesModule,
     WsModule,
     FilesModule,
+    EmojisModule,
     EventEmitterModule.forRoot({
       wildcard: true,
       delimiter: '.',

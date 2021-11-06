@@ -11,8 +11,15 @@ import { InjectModel } from '@nestjs/mongoose'
 import { Cache } from 'cache-manager'
 import { Model } from 'mongoose'
 import { UniqueID } from 'nodejs-snowflake'
-import { Parser } from 'utils/parser/parser.utils'
+import { ParserUtils } from 'utils/parser/parser.utils'
+import emojiRegex from 'emoji-regex'
 import { File, FileDocument } from '../files/schemas/file.schema'
+import { EmojiResponseValidate } from './../emojis/responses/emoji.response'
+import {
+  EmojiPack,
+  EmojiPackDocument,
+  EmojiPackType,
+} from './../emojis/schemas/emojiPack.schema'
 import { config } from './../../app.config'
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema'
 import { FileServer, FileType } from './../files/schemas/file.schema'
@@ -45,12 +52,14 @@ export class ChannelsService {
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
+    @InjectModel(EmojiPack.name)
+    private emojiPackModel: Model<EmojiPackDocument>,
     @InjectModel(Emoji.name) private emojiModel: Model<EmojiDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(File.name) private fileModel: Model<FileDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private guildService: GuildsService,
-    private parser: Parser,
+    private parser: ParserUtils,
     private eventEmitter: EventEmitter2,
   ) {}
 
@@ -161,6 +170,14 @@ export class ChannelsService {
           localField: 'f_ids',
           foreignField: 'id',
           as: 'forwarded_compiled_users',
+        },
+      },
+      {
+        $lookup: {
+          from: 'emojis',
+          localField: 'reaction_ids',
+          foreignField: 'id',
+          as: 'emojis_compiled',
         },
       },
     ])
@@ -316,6 +333,22 @@ export class ChannelsService {
     emojiId: string,
     userId: string,
   ): Promise<void> {
+    const user = (await this.userModel.findOne({ id: userId })).toObject()
+    const unicodeEmojiTest = emojiId.match(emojiRegex())
+    let reaction: string
+    let emoji
+    if (unicodeEmojiTest?.length === 1) {
+      reaction = <string>unicodeEmojiTest[0][0]
+    } else {
+      emoji = (await this.emojiModel.findOne({ id: emojiId })).toObject()
+      if (!user.emoji_packs_ids.includes(emoji.pack_id))
+        throw new ForbiddenException()
+      const pack = (
+        await this.emojiPackModel.findOne({ id: emoji.pack_id })
+      ).toObject()
+      if (pack.type === EmojiPackType.STICKER) throw new BadRequestException()
+      reaction = emoji.id
+    }
     const channel = await this.channelModel
       .findOne({ id: channelId }, 'type recipients guild_id')
       .lean()
@@ -349,11 +382,7 @@ export class ChannelsService {
             (perms & ComputedPermissions.OWNER) |
             ComputedPermissions.ADMINISTRATOR |
             ComputedPermissions.ADD_EXTERNAL_REACTIONS
-          ) &&
-          !(await this.emojiModel.exists({
-            id: emojiId,
-            owner_id: channel.guild_id,
-          }))
+          )
         )
           throw new ForbiddenException()
       }
@@ -364,7 +393,7 @@ export class ChannelsService {
       channel_id: channelId,
     })
     const reactionIndex = message.reactions.findIndex(
-      (reaction) => reaction.emoji_id == emojiId,
+      (react) => react.emoji_id == reaction,
     )
     if (reactionIndex + 1) {
       if (
@@ -376,7 +405,8 @@ export class ChannelsService {
         throw new ForbiddenException()
       message.reactions[reactionIndex].users.push(userId)
     } else {
-      message.reactions.push({ emoji_id: emojiId, users: [userId] })
+      message.reaction_ids.push(reaction)
+      message.reactions.push({ emoji_id: reaction, users: [userId] })
     }
     message.markModified('reactions')
     await message.save()
@@ -384,10 +414,11 @@ export class ChannelsService {
     const data = {
       event: 'message.reaction_added',
       data: {
-        emoji_id: emojiId,
+        emoji_id: reaction,
         user_id: userId,
         message_id: messageId,
         channel_id: channelId,
+        emoji,
       },
     }
     this.eventEmitter.emit('message.reaction_added', data, channel?.guild_id)
@@ -426,8 +457,10 @@ export class ChannelsService {
     )
     const userIndex = message.reactions[reactionIndex].users.indexOf(userId)
     message.reactions[reactionIndex].users.splice(userIndex, 1)
-    if (!message.reactions[reactionIndex].users.length)
+    if (!message.reactions[reactionIndex].users.length) {
       message.reactions.splice(reactionIndex, 1)
+      message.reaction_ids.splice(message.reaction_ids.indexOf(emojiId), 1)
+    }
     message.markModified('reactions')
     await message.save()
 
@@ -1041,6 +1074,21 @@ export class ChannelsService {
         message.attachments.push(MessageAttachmentValidate(att))
       }
     }
+    if (message.reaction_ids.length) {
+      message.reactions.forEach((reaction, index) => {
+        const emojiIndex = message.emojis_compiled.findIndex(
+          (em) => em.id === reaction.emoji_id,
+        )
+        if (!reaction.emoji_id.match(emojiRegex())) {
+          message.emojis_compiled[
+            emojiIndex
+          ].url = `https://cdn.nx.wtf/${message.emojis_compiled[emojiIndex].id}/emoji.webp`
+          message.reactions[index].emoji = EmojiResponseValidate(
+            message.emojis_compiled[emojiIndex],
+          )
+        }
+      })
+    }
     return MessageResponseValidate(message)
   }
 
@@ -1057,6 +1105,7 @@ class AgrMessage {
   attachments: MessageAttachment[]
   attachments_compiled: FileDocument[]
   forwarded_compiled_attachments: FileDocument[]
+  emojis_compiled: EmojiDocument[]
 }
 
 class extMessage {

@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
+import { EmojiResponse } from './../../emojis/responses/emoji.response'
 
 export type MessageDocument = Message & Document
 
@@ -95,6 +96,9 @@ export class Message {
    */
   @Prop()
   reactions?: Reaction[] | null
+
+  @Prop()
+  reaction_ids?: string[]
 
   /**
    * Ids of users specifically mentioned in the message
@@ -431,6 +435,7 @@ export class Attachment {
 class Reaction {
   emoji_id: string
   users: string[]
+  emoji?: EmojiResponse
 }
 
 export enum MessageType {

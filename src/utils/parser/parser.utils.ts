@@ -15,7 +15,7 @@ import {
 } from 'api/guilds/schemas/role.schema'
 
 @Injectable()
-export class Parser {
+export class ParserUtils {
   constructor(
     @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,

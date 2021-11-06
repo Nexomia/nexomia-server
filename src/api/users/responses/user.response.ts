@@ -1,4 +1,5 @@
 import myzod, { Infer } from 'myzod'
+import { EmojiPackResponseSchema } from 'api/emojis/responses/emojiPack.response'
 import { User } from './../schemas/user.schema'
 
 const UserResponseSchema = myzod.object({
@@ -11,6 +12,9 @@ const UserResponseSchema = myzod.object({
   presence: myzod.number(),
   status: myzod.string().optional(),
   description: myzod.string().optional(),
+  emoji_packs: myzod
+    .array(EmojiPackResponseSchema.allowUnknownKeys().optional())
+    .optional(),
   verified: myzod.boolean(),
   premium_type: myzod.boolean(),
   public_flags: myzod.number().optional(),

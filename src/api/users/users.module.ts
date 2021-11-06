@@ -2,6 +2,7 @@ import { CacheModule, Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
 import { Channel, ChannelSchema } from '../channels/schemas/channel.schema'
 import { File, FileSchema } from '../files/schemas/file.schema'
+import { EmojisModule } from './../emojis/emojis.module'
 import { FilesModule } from './../files/files.module'
 import { SaltService } from './../../utils/salt/salt.service'
 import { GuildsModule } from './../guilds/guilds.module'
@@ -14,6 +15,7 @@ import { UsersService } from './users.service'
 
 @Module({
   imports: [
+    EmojisModule,
     FilesModule,
     ChannelsModule,
     GuildsModule,

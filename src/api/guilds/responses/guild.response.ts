@@ -34,6 +34,7 @@ const MemberUserResponseSchema = myzod.object({
   username: myzod.string(),
   discriminator: myzod.string(),
   avatar: myzod.string().optional(),
+  status: myzod.string().optional(),
 })
 
 export type MemberResponse = Infer<typeof MemberUserResponseSchema>

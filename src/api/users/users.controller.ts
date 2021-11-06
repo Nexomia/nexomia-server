@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common'
 import { DUser } from '../../decorators/user.decorator'
 import { UserResponse } from './responses/user.response'
@@ -67,10 +68,26 @@ export class UsersController {
   }
 
   @Post('@me/channels')
-  create(
+  async create(
     @DUser() user: AccessToken,
     @Body() createChannelDto,
   ): Promise<ChannelResponse> {
-    return this.usersService.createChannel(user.id, createChannelDto)
+    return await this.usersService.createChannel(user.id, createChannelDto)
+  }
+
+  @Put('@me/emojiPacks/:emojiPackId')
+  async addEmojiPack(
+    @Param('emojiPackId') emojiPackId: string,
+    @DUser() user: AccessToken,
+  ): Promise<void> {
+    return await this.usersService.addEmojiPack(emojiPackId, user.id)
+  }
+
+  @Delete('@me/emojiPacks/:emojiPackId')
+  async deleteEmojiPack(
+    @Param('emojiPackId') emojiPackId: string,
+    @DUser() user: AccessToken,
+  ): Promise<void> {
+    return await this.usersService.deleteEmojiPack(emojiPackId, user.id)
   }
 }

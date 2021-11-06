@@ -7,12 +7,23 @@ import {
   Inject,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { UniqueID } from 'nodejs-snowflake'
 import { Cache } from 'cache-manager'
+import { EmojiResponseValidate } from 'api/emojis/responses/emoji.response'
 import { Channel, ChannelDocument } from '../channels/schemas/channel.schema'
 import { Guild } from '../guilds/schemas/guild.schema'
+import {
+  EmojiPackResponse,
+  EmojiPackResponseValidate,
+} from './../emojis/responses/emojiPack.response'
+import { Emoji } from './../emojis/schemas/emoji.schema'
+import {
+  EmojiPack,
+  EmojiPackDocument,
+} from './../emojis/schemas/emojiPack.schema'
 import { FilesService } from './../files/files.service'
 import { CreateUserChannelDto } from './dto/create-user-channel.dto'
 import { File, FileDocument, FileType } from './../files/schemas/file.schema'
@@ -40,6 +51,8 @@ export class UsersService {
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @InjectModel(File.name) private fileModel: Model<FileDocument>,
+    @InjectModel(EmojiPack.name)
+    private emojiPackModel: Model<EmojiPackDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
     private channelsService: ChannelsService,
@@ -55,6 +68,32 @@ export class UsersService {
       (await this.onlineManager.get(user.id)) && user.presence !== 4
     )
     if (!user.connected) user.presence = 4
+    if (me) {
+      const emojiPacks: EmojiPack[] = await this.emojiPackModel.aggregate([
+        {
+          $match: { id: { $in: user.emoji_packs_ids } },
+        },
+        {
+          $lookup: {
+            from: 'emojis',
+            localField: 'id',
+            foreignField: 'pack_id',
+            as: 'emojis',
+          },
+        },
+      ])
+      console.log(emojiPacks)
+      user.emoji_packs = <EmojiPackResponse[]>emojiPacks.map(
+        (pack: EmojiPack) => {
+          pack.emojis.map((emoji: Emoji) => {
+            emoji.url = `https://cdn.nx.wtf/${emoji.id}/${pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
+            }.webp`
+            return EmojiResponseValidate(emoji)
+          })
+          return EmojiPackResponseValidate(pack)
+        },
+      )
+    }
     const cleanedUser = UserResponseValidate(user)
     if (me) return cleanedUser
     else {
@@ -286,6 +325,35 @@ export class UsersService {
     this.eventEmitter.emit('channel.created', data, channel.id)
 
     return cleanedChannel
+  }
+
+  async addEmojiPack(packId: string, userId: string): Promise<void> {
+    const user = await this.userModel.findOne({ id: userId })
+    if (user.emoji_packs_ids.includes(packId)) throw new ConflictException()
+
+    const pack = (await this.emojiPackModel.findOne({ id: packId })).toObject()
+    if (
+      !user.emoji_packs_ids.includes(packId) &&
+      pack.owner_id !== userId &&
+      (pack.access.disallowedUsers.includes(userId) ||
+        (!pack.access.open_for_new_users &&
+          !pack.access.allowedUsers.includes(userId)))
+    )
+      throw new ForbiddenException()
+    user.emoji_packs_ids.push(pack.id)
+    user.markModified('emoji_packs_ids')
+    await user.save()
+    return
+  }
+
+  async deleteEmojiPack(packId: string, userId: string): Promise<void> {
+    const user = await this.userModel.findOne({ id: userId })
+    if (!user.emoji_packs_ids.includes(packId)) throw new NotFoundException()
+
+    user.emoji_packs_ids.splice(user.emoji_packs_ids.indexOf(packId), 1)
+    user.markModified('emoji_packs_ids')
+    await user.save()
+    return
   }
 
   private async getUserServers(userId, allowDms?) {

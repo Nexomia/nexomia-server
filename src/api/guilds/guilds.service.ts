@@ -6,6 +6,8 @@ import {
   NotFoundException,
   Inject,
   CACHE_MANAGER,
+  ConflictException,
+  ForbiddenException,
 } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
@@ -13,6 +15,10 @@ import { UniqueID } from 'nodejs-snowflake'
 import { Cache } from 'cache-manager'
 import { Invite, InviteDocument } from '../invites/schemas/invite.schema'
 import { File, FileDocument } from '../files/schemas/file.schema'
+import {
+  EmojiPack,
+  EmojiPackDocument,
+} from './../emojis/schemas/emojiPack.schema'
 import { FilesService } from './../files/files.service'
 import { FileType } from './../files/schemas/file.schema'
 import { UserResponse } from './../users/responses/user.response'
@@ -49,6 +55,8 @@ export class GuildsService {
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @InjectModel(File.name) private fileModel: Model<FileDocument>,
+    @InjectModel(EmojiPack.name)
+    private emojiPackModel: Model<EmojiPackDocument>,
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
     private filesService: FilesService,
@@ -92,6 +100,14 @@ export class GuildsService {
               },
             ],
             as: 'roles',
+          },
+        },
+        {
+          $lookup: {
+            from: 'emojipacks',
+            localField: 'emoji_pack_ids',
+            foreignField: 'id',
+            as: 'emoji_packs',
           },
         },
       ])
@@ -441,6 +457,33 @@ export class GuildsService {
 
     return cleanedRole
   }
+
+  async addEmojiPack(packId: string, guildId: string): Promise<void> {
+    const guild = await this.guildModel.findOne({ id: guildId })
+    if (guild.emoji_packs_ids.includes(packId)) throw new ConflictException()
+
+    const pack = (await this.emojiPackModel.findOne({ id: packId })).toObject()
+    if (
+      guild.emoji_packs_ids.includes(packId) ||
+      !pack.access.open_for_new_users
+    )
+      throw new ForbiddenException()
+    guild.emoji_packs_ids.push(pack.id)
+    guild.markModified('emoji_packs_ids')
+    await guild.save()
+    return
+  }
+
+  async deleteEmojiPack(packId: string, userId: string): Promise<void> {
+    const guild = await this.guildModel.findOne({ id: userId })
+    if (!guild.emoji_packs_ids.includes(packId)) throw new NotFoundException()
+
+    guild.emoji_packs_ids.splice(guild.emoji_packs_ids.indexOf(packId), 1)
+    guild.markModified('emoji_packs_ids')
+    await guild.save()
+    return
+  }
+
   async isMember(guildId: string, userId: string) {
     return await this.guildModel.exists({ id: guildId, 'members.id': userId })
   }

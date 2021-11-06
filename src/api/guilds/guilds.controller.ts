@@ -1,4 +1,4 @@
-import { Parser } from 'utils/parser/parser.utils'
+import { ParserUtils } from 'utils/parser/parser.utils'
 import {
   Body,
   Controller,
@@ -7,6 +7,8 @@ import {
   Patch,
   Post,
   ForbiddenException,
+  Delete,
+  Put,
 } from '@nestjs/common'
 import { DUser } from 'decorators/user.decorator'
 import { GuildResponse } from './responses/guild.response'
@@ -22,7 +24,10 @@ import { GuildsService, ExtendedMember } from './guilds.service'
 
 @Controller('guilds')
 export class GuildsController {
-  constructor(private guildsService: GuildsService, private parser: Parser) {}
+  constructor(
+    private guildsService: GuildsService,
+    private parser: ParserUtils,
+  ) {}
 
   @Get(':guildId')
   async getGuild(@Param('guildId') guildId, @DUser() user): Promise<Guild> {
@@ -112,7 +117,7 @@ export class GuildsController {
   @Get(':guildId/invites')
   async getInvites(
     @Param('guildId') guildId: string,
-    @DUser() user: AccessToken,
+    // @DUser() user: AccessToken,
   ) {
     return await this.guildsService.getInvites(guildId)
   }
@@ -180,5 +185,33 @@ export class GuildsController {
         user.id,
       )
     else throw new ForbiddenException()
+  }
+
+  @Put(':guildId/emojiPacks/:emojiPackId')
+  async addEmojiPack(
+    @Param('emojiPackId') params,
+    @DUser() user: AccessToken,
+  ): Promise<void> {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_GUILD)
+    )
+      return await this.guildsService.addEmojiPack(
+        params.emojiPackId,
+        params.guildId,
+      )
+  }
+
+  @Delete(':guildId/emojiPacks/:emojiPackId')
+  async deleteEmojiPack(@Param() params): Promise<void> {
+    return await this.guildsService.deleteEmojiPack(
+      params.emojiPackId,
+      params.guildId,
+    )
   }
 }

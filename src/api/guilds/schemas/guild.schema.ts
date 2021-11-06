@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
+import { EmojiPackResponse } from './../../emojis/responses/emojiPack.response'
 import { Permissions } from './role.schema'
 
 @Schema({ versionKey: false })
@@ -165,6 +166,11 @@ export class Guild {
    */
   @Prop()
   nsfw?: boolean
+
+  @Prop()
+  emoji_packs_ids?: string[]
+
+  emoji_packs?: EmojiPackResponse[]
 }
 
 export class GuildShort {

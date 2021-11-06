@@ -77,13 +77,13 @@ export class ChannelsController {
     )
   }
 
-  /*@Post(':channelId/messages/:messageId/crosspost')
-  async crosspost(@Param() params) {
-    return await this.channelsService.crosspostMessage(
-      params.channelId,
-      params.messageId,
-    )
-  }
+  // @Post(':channelId/messages/:messageId/crosspost')
+  // async crosspost(@Param() params) {
+  //   return await this.channelsService.crosspostMessage(
+  //     params.channelId,
+  //     params.messageId,
+  //   )
+  // }
 
   @Put(':channelId/messages/:messageId/reactions/:emojiId/@me')
   async createReaction(
@@ -111,7 +111,7 @@ export class ChannelsController {
       params.userId,
     )
   }
-
+  /*
   @Get(':channelId/messages/:messageId/reactions/:emojiId')
   async getReactions(@Param() params) {
     return await this.channelsService.getReactions(

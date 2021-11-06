@@ -1,7 +1,9 @@
 import { MongooseModule } from '@nestjs/mongoose'
 import { CacheModule, Module } from '@nestjs/common'
-import { Parser } from 'utils/parser/parser.utils'
 import { Invite, InviteSchema } from '../invites/schemas/invite.schema'
+import { EmojisModule } from './../emojis/emojis.module'
+import { ParserUtils } from './../../utils/parser/parser.utils'
+import { ParserModule } from './../../utils/parser/parser.module'
 import { FilesModule } from './../files/files.module'
 import { File, FileSchema } from './../files/schemas/file.schema'
 import { Role, RoleSchema } from './schemas/role.schema'
@@ -13,6 +15,8 @@ import { GuildsController } from './guilds.controller'
 
 @Module({
   imports: [
+    EmojisModule,
+    ParserModule,
     FilesModule,
     CacheModule.register({
       ttl: 60 * 60 * 24 * 365,
@@ -27,7 +31,7 @@ import { GuildsController } from './guilds.controller'
     ]),
   ],
   exports: [GuildsService, MongooseModule],
-  providers: [GuildsService, Parser],
+  providers: [GuildsService, ParserUtils],
   controllers: [GuildsController],
 })
 export class GuildsModule {}

@@ -1,4 +1,3 @@
-import { Parser } from 'utils/parser/parser.utils'
 import { CacheModule, Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
 import { ChannelsModule } from './../channels/channels.module'
@@ -23,6 +22,6 @@ import { InvitesService } from './invites.service'
     ]),
   ],
   controllers: [InvitesController],
-  providers: [InvitesService, Parser],
+  providers: [InvitesService],
 })
 export class InvitesModule {}
