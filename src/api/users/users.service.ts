@@ -113,7 +113,9 @@ export class UsersService {
     let tagChanges = 0
 
     if (modifyData.username && modifyData.username !== user.username) {
-      if (!pass) throw new BadRequestException()
+      if (modifyData.username.replaceAll(' ', '') === '' || !pass)
+        throw new BadRequestException()
+
       user.username = modifyData.username
       changes++
       tagChanges++
@@ -158,13 +160,21 @@ export class UsersService {
       changes++
     }
 
-    if (modifyData.status && modifyData.status !== user.status) {
-      user.status = modifyData.status
+    if (
+      modifyData.status &&
+      modifyData.status !== user.status &&
+      modifyData.status.replaceAll(' ', '') !== ''
+    ) {
+      user.status = modifyData.status.replaceAll(/(\s){2,}/gm, ' ')
       changes++
     }
 
-    if (modifyData.description && modifyData.description !== user.description) {
-      user.description = modifyData.description
+    if (
+      modifyData.description &&
+      modifyData.description !== user.description &&
+      modifyData.description.replaceAll(' ', '') !== ''
+    ) {
+      user.description = modifyData.description.replaceAll(/(\s){2,}/gm, ' ')
       changes++
     }
 
@@ -281,8 +291,12 @@ export class UsersService {
     channel.type =
       recipients.length === 1 ? ChannelType.DM : ChannelType.GROUP_DM
 
-    if (channelData.name && channel.type === ChannelType.GROUP_DM)
-      channel.name = channelData.name
+    if (channelData.name && channel.type === ChannelType.GROUP_DM) {
+      if (channelData.name.replaceAll(' ', '') === '')
+        channel.name = 'new channel'
+
+      channel.name = channelData.name.replaceAll(/(\s){2,}/gm, ' ')
+    }
 
     if (
       channel.type === ChannelType.DM &&

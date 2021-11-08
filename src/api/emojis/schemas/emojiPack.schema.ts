@@ -41,7 +41,7 @@ export class EmojiPack {
   @Prop()
   icon?: string
 
-  @Prop()
+  @Prop({ default: '' })
   description?: string
 
   @Prop({ default: defaultAccess })

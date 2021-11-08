@@ -83,11 +83,14 @@ export class EmojisService {
     userId: string,
     dto: CreateEmojiPackDto,
   ): Promise<EmojiPackResponse> {
+    if (dto.name.replaceAll(' ', '') === '') throw new BadRequestException()
     const pack = await new this.emojiPackModel()
     pack.id = new UniqueID(config.snowflake).getUniqueID()
     pack.owner_id = userId
-    pack.name = dto.name
-    if (dto.description) pack.description = dto.description
+    pack.name = dto.name.replaceAll(/(\s){2,}/gm, ' ')
+    if (dto.description && dto.description.replaceAll(' ', '') !== '')
+      pack.description = dto.description.replaceAll(/(\s){2,}/gm, ' ')
+
     pack.type = dto.type
     if (dto.icon) {
       const file = await this.filesService.getFileInfo(dto.icon)
@@ -128,12 +131,14 @@ export class EmojisService {
     dto: EditEmojiPackDto,
     userId: string,
   ): Promise<EmojiPackResponse> {
+    if (dto.name.replaceAll(' ', '') === '') throw new BadRequestException()
     const pack = await this.emojiPackModel.findOne({ id: packId })
     if (!pack) throw new NotFoundException()
     if (pack.owner_id !== userId) throw new ForbiddenException()
 
-    if (dto.name) pack.name = dto.name
-    if (dto.description) pack.description = dto.description
+    if (dto.name) pack.name = dto.name.replaceAll(/(\s){2,}/gm, ' ')
+    if (dto.description && dto.description.replaceAll(' ', '') !== '')
+      pack.description = dto.description.replaceAll(/(\s){2,}/gm, ' ')
     if (dto.open_for_new_users)
       pack.access.open_for_new_users = dto.open_for_new_users
     if (dto.icon) pack.icon = dto.icon
@@ -263,6 +268,8 @@ export class EmojisService {
     dto: AddEmojiDto,
     userId: string,
   ): Promise<EmojiResponse> {
+    if (dto.name.replaceAll(' ', '') === '') throw new BadRequestException()
+
     const pack = await this.emojiPackModel.findOne({ id: packId })
     if (!pack) throw new NotFoundException()
     if (pack.owner_id !== userId) throw new ForbiddenException()
@@ -276,10 +283,17 @@ export class EmojisService {
     const emoji = new this.emojiModel()
     emoji.id = file.id
     emoji.pack_id = packId
-    emoji.name = dto.name
+    emoji.name = dto.name.replaceAll(/(\s){2,}/gm, ' ')
     emoji.animated = file?.data?.animated
     emoji.user_id = userId
-    if (dto.words) emoji.words = dto.words
+    if (dto.words) {
+      let words: string[]
+      dto.words.forEach((word) => {
+        if (word.replaceAll(' ', '') !== '')
+          words.push(word.replaceAll(/(\s){2,}/gm, ' '))
+      })
+      emoji.words = words
+    }
     await emoji.save()
     const extendedEmoji = emoji.toObject()
     extendedEmoji.url = `https://cdn.nx.wtf/${file.id}/${
@@ -316,6 +330,7 @@ export class EmojisService {
     dto: EditEmojiDto,
     userId: string,
   ): Promise<EmojiResponse> {
+    if (dto.name.replaceAll(' ', '') === '') throw new BadRequestException()
     const pack = await this.emojiPackModel.findOne({ id: packId })
     if (!pack) throw new NotFoundException()
     if (pack.owner_id !== userId) throw new ForbiddenException()
@@ -327,8 +342,14 @@ export class EmojisService {
     })
     if (!emoji) throw new NotFoundException()
 
-    if (dto.name) emoji.name = dto.name
-    if (dto.words) emoji.words = dto.words
+    if (dto.name) emoji.name = dto.name.replaceAll(/(\s){2,}/gm, ' ')
+    if (dto.words) {
+      let words: string[]
+      dto.words.forEach((word) => {
+        if (word.replaceAll(' ', '') !== '')
+          words.push(word.replaceAll(/(\s){2,}/gm, ' '))
+      })
+    }
     await emoji.save()
     const extendedEmoji = emoji.toObject()
     extendedEmoji.url = `https://cdn.nx.wtf/${emoji.id}/${

@@ -259,6 +259,9 @@ export class ChannelsService {
     messageDto: CreateMessageDto,
     systemData?: any,
   ): Promise<MessageResponse> {
+    if (messageDto.content && messageDto.content.replaceAll(' ', '') === '')
+      throw new BadRequestException()
+
     const channel = (await this.getExistsChannel(channelId)).toObject()
     if (!channel) throw new BadRequestException()
     if (
@@ -310,7 +313,8 @@ export class ChannelsService {
     )
       throw new BadRequestException()
 
-    if (!messageDto.sticker) message.content = messageDto?.content
+    if (!messageDto.sticker)
+      message.content = messageDto?.content.replaceAll(/(\s){2,}/gm, ' ')
 
     let forwarded_messages: Message[]
     const forwarded_messages_users_ids: string[] = []

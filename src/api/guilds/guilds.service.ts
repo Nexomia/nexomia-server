@@ -127,11 +127,12 @@ export class GuildsService {
     guildDto: CreateGuildDto,
     userId: string,
   ): Promise<GuildResponse> {
-    if (!guildDto.name) throw new BadRequestException()
+    if (!guildDto.name || guildDto.name.replaceAll(' ', '') === '')
+      throw new BadRequestException()
 
     const guild = new this.guildModel()
     guild.id = new UniqueID(config.snowflake).getUniqueID()
-    guild.name = guildDto.name
+    guild.name = guildDto.name.replaceAll(/(\s){2,}/gm, ' ')
     guild.owner_id = userId
     // иконку немного позже
     const member: GuildMember = {
@@ -241,10 +242,13 @@ export class GuildsService {
     guildId: string,
     channelDto: CreateChannelDto,
   ): Promise<ChannelResponse> {
+    if (channelDto.name.replaceAll(' ', '') === '')
+      throw new BadRequestException()
+
     if (channelDto.type < 2) throw new BadRequestException()
     const channel = new this.channelModel()
     channel.id = new UniqueID(config.snowflake).getUniqueID()
-    channel.name = channelDto.name
+    channel.name = channelDto.name.replaceAll(/(\s){2,}/gm, ' ')
     channel.type = channelDto.type
     channel.guild_id = guildId
 
@@ -393,7 +397,9 @@ export class GuildsService {
       allow: 0,
       deny: 0,
     }
-    if (createRoleDto.name) role.name = createRoleDto.name
+    if (createRoleDto.name && createRoleDto.name.replaceAll(' ', '') !== '')
+      role.name = createRoleDto.name.replaceAll(/(\s){2,}/gm, ' ')
+
     if (createRoleDto.color) role.color = createRoleDto.color
     if (createRoleDto.hoist) role.hoist = createRoleDto.hoist
     if (createRoleDto.mentionable) role.mentionable = createRoleDto.mentionable
@@ -477,7 +483,9 @@ export class GuildsService {
       deleted: false,
     })
     if (!role) throw new NotFoundException()
-    if (patchRoleDto.name) role.name = patchRoleDto.name
+    if (patchRoleDto.name && patchRoleDto.name.replaceAll(' ', '') !== '')
+      role.name = patchRoleDto.name.replaceAll(/(\s){2,}/gm, ' ')
+
     if (patchRoleDto.color) role.color = patchRoleDto.color
     if (patchRoleDto.hoist && !role.default) role.hoist = patchRoleDto.hoist
     if (patchRoleDto.mentionable) role.mentionable = patchRoleDto.mentionable
