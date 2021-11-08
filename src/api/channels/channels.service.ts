@@ -21,12 +21,7 @@ import {
 } from './../emojis/schemas/emojiPack.schema'
 import { config } from './../../app.config'
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema'
-import {
-  File,
-  FileServer,
-  FileType,
-  FileDocument,
-} from './../files/schemas/file.schema'
+import { File, FileType, FileDocument } from './../files/schemas/file.schema'
 import { GuildsService } from './../guilds/guilds.service'
 import { ComputedPermissions } from './../guilds/schemas/role.schema'
 import { Invite, InviteDocument } from './../invites/schemas/invite.schema'
@@ -65,17 +60,54 @@ export class ChannelsService {
     private guildService: GuildsService,
     private parser: ParserUtils,
     private eventEmitter: EventEmitter2,
+    private guildsService: GuildsService,
   ) {}
 
   async getChannel(channelId: string): Promise<ChannelResponse> {
-    const channel = await (
-      await this.channelModel.findOne({ id: channelId })
-    ).toObject()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
     if (!channel) throw new NotFoundException()
     return ChannelResponseValidate(channel)
   }
+  async deleteChannel(channelId: string, userId: string): Promise<void> {
+    const channel = await this.getExistsChannel(channelId)
+    if (!channel) throw new NotFoundException()
 
-  // async deleteChannel(channelId: string) {}
+    // 0 and 1 - DM channels
+    if (channel.type > 1) {
+      if (!this.guildsService.isMember(channel.guild_id, userId))
+        throw new ForbiddenException()
+      const perms = await this.parser.computePermissions(
+        channel.guild_id,
+        userId,
+      )
+      if (
+        !(
+          perms &
+          (ComputedPermissions.OWNER |
+            ComputedPermissions.ADMINISTRATOR |
+            ComputedPermissions.MANAGE_CHANNELS)
+        )
+      )
+        throw new ForbiddenException()
+    } else {
+      if (channel.owner_id !== userId) throw new ForbiddenException()
+    }
+
+    // потом надо аудиты запилить
+    const data = {
+      event: 'guild.channel_deleted',
+      data: { id: channelId },
+    }
+    channel.deleted = true
+    await channel.save()
+
+    await this.messageModel.updateMany(
+      { channel_id: channelId, deleted: false },
+      { $set: { deleted: true } },
+    )
+    this.eventEmitter.emit('guild.channel_deleted', data, channel.guild_id)
+    return
+  }
 
   async getChannelMessages(
     channelId,
@@ -83,9 +115,8 @@ export class ChannelsService {
     userId,
     one?,
   ): Promise<MessageResponse[] | MessageResponse> {
-    const channel = await this.channelModel
-      .findOne({ id: channelId }, 'type recipients guild_id')
-      .lean()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -228,9 +259,8 @@ export class ChannelsService {
     messageDto: CreateMessageDto,
     systemData?: any,
   ): Promise<MessageResponse> {
-    const channel = await this.channelModel
-      .findOne({ id: channelId }, 'type recipients guild_id')
-      .lean()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -373,9 +403,8 @@ export class ChannelsService {
       if (pack.type === EmojiPackType.STICKER) throw new BadRequestException()
       reaction = emoji.id
     }
-    const channel = await this.channelModel
-      .findOne({ id: channelId }, 'type recipients guild_id')
-      .lean()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -456,9 +485,8 @@ export class ChannelsService {
     emojiId: string,
     userId: string,
   ): Promise<void> {
-    const channel = await this.channelModel
-      .findOne({ id: channelId }, 'type recipients guild_id')
-      .lean()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -514,12 +542,8 @@ export class ChannelsService {
     messageDto: EditMessageDto,
     userId: string,
   ) {
-    const channel = await (
-      await this.channelModel.findOne(
-        { id: channelId },
-        'type recipients guild_id',
-      )
-    ).toObject()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -622,12 +646,8 @@ export class ChannelsService {
   }
 
   async deleteMessage(channelId, messageId, userId): Promise<void> {
-    const channel = await (
-      await this.channelModel.findOne(
-        { id: channelId },
-        'type recipients guild_id',
-      )
-    ).toObject()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -702,12 +722,8 @@ export class ChannelsService {
     messageIds: string[],
     userId: string,
   ) {
-    const channel = await (
-      await this.channelModel.findOne(
-        { id: channelId },
-        'type recipients guild_id',
-      )
-    ).toObject()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -783,7 +799,8 @@ export class ChannelsService {
     inviteDto: CreateInviteDto,
     userId,
   ): Promise<Invite> {
-    const channel = await this.channelModel.findOne({ id: channelId }).lean()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -822,12 +839,8 @@ export class ChannelsService {
   // async followChannel(channelId: string, followDto: FollowChannelDto) {}
 
   async typing(channelId, userId) {
-    const channel = await (
-      await this.channelModel.findOne(
-        { id: channelId },
-        'type recipients guild_id',
-      )
-    ).toObject()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -864,12 +877,8 @@ export class ChannelsService {
   }
 
   async pinMessage(channelId, messageId, userId): Promise<void> {
-    const channel = await (
-      await this.channelModel.findOne(
-        { id: channelId },
-        'type recipients guild_id',
-      )
-    ).toObject()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -925,12 +934,8 @@ export class ChannelsService {
   }
 
   async deletePinnedMessage(channelId, messageId, userId): Promise<void> {
-    const channel = await (
-      await this.channelModel.findOne(
-        { id: channelId },
-        'type recipients guild_id',
-      )
-    ).toObject()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -974,12 +979,8 @@ export class ChannelsService {
   }
 
   async getPinnedMessages(channelId, userId) {
-    const channel = await (
-      await this.channelModel.findOne(
-        { id: channelId },
-        'type recipients guild_id',
-      )
-    ).toObject()
+    const channel = (await this.getExistsChannel(channelId)).toObject()
+    if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
       channel.type === ChannelType.GROUP_DM
@@ -1005,7 +1006,7 @@ export class ChannelsService {
         throw new ForbiddenException()
     }
 
-    const pinnedMessages = await (
+    const pinnedMessages = (
       await this.channelModel.findOne({ id: channelId }, 'pinned_messages_ids')
     ).toObject().pinned_messages_ids
     const messages = <MessageResponse[]>(
@@ -1078,7 +1079,7 @@ export class ChannelsService {
       }
     }
     message.attachments = []
-    if (message.attachment_ids.length) {
+    if (message.attachment_ids?.length) {
       for (const att of message.attachments_compiled) {
         att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
           att.name,
@@ -1108,8 +1109,11 @@ export class ChannelsService {
     return MessageResponseValidate(message)
   }
 
-  async isMember(channelId, userId) {
+  isMember = async (channelId, userId) => {
     return await this.channelModel.exists({ id: channelId, recipients: userId })
+  }
+  getExistsChannel = async (channelId): Promise<ChannelDocument> => {
+    return this.channelModel.findOne({ id: channelId, deleted: false })
   }
 }
 class AgrMessage {

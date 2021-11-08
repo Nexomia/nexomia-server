@@ -15,6 +15,8 @@ import { UniqueID } from 'nodejs-snowflake'
 import { Cache } from 'cache-manager'
 import { Invite, InviteDocument } from '../invites/schemas/invite.schema'
 import { File, FileDocument } from '../files/schemas/file.schema'
+import { Message, MessageDocument } from './../channels/schemas/message.schema'
+import { ParserUtils } from './../../utils/parser/parser.utils'
 import {
   EmojiPack,
   EmojiPackDocument,
@@ -53,6 +55,7 @@ export class GuildsService {
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
+    @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @InjectModel(File.name) private fileModel: Model<FileDocument>,
     @InjectModel(EmojiPack.name)
@@ -60,6 +63,7 @@ export class GuildsService {
     @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private eventEmitter: EventEmitter2,
     private filesService: FilesService,
+    private parser: ParserUtils,
   ) {}
 
   async getGuild(guildId, userId): Promise<Guild> {
@@ -81,6 +85,7 @@ export class GuildsService {
                   $expr: {
                     $eq: ['$guild_id', guildId],
                   },
+                  deleted: false,
                 },
               },
             ],
@@ -96,6 +101,7 @@ export class GuildsService {
                   $expr: {
                     $eq: ['$guild_id', guildId],
                   },
+                  deleted: false,
                 },
               },
             ],
@@ -271,7 +277,9 @@ export class GuildsService {
 
   async getChannels(guildId): Promise<ChannelResponse[]> {
     return (
-      await this.channelModel.find({ guild_id: guildId }).select('-_id')
+      await this.channelModel
+        .find({ guild_id: guildId, deleted: false })
+        .select('-_id')
     ).map(ChannelResponseValidate)
   }
 
@@ -281,6 +289,7 @@ export class GuildsService {
         {
           $match: {
             id: guildId,
+            deleted: false,
           },
         },
         { $unwind: '$members' },
@@ -342,9 +351,9 @@ export class GuildsService {
   }
 
   async getRoles(guildId: string): Promise<RoleResponse[]> {
-    return (await this.roleModel.find({ guild_id: guildId })).map(
-      RoleResponseValidate,
-    )
+    return (
+      await this.roleModel.find({ guild_id: guildId, deleted: false })
+    ).map(RoleResponseValidate)
   }
 
   async getRole(
@@ -353,7 +362,11 @@ export class GuildsService {
     userId,
   ): Promise<RoleResponse> {
     const role = (
-      await this.roleModel.findOne({ id: roleId, guild_id: guildId })
+      await this.roleModel.findOne({
+        id: roleId,
+        guild_id: guildId,
+        deleted: false,
+      })
     ).toObject()
     return RoleResponseValidate(role)
   }
@@ -366,8 +379,12 @@ export class GuildsService {
   async createRole(
     guildId: string,
     createRoleDto: RoleDto,
+    userId: string,
   ): Promise<RoleResponse> {
-    const count = await this.roleModel.countDocuments({ guild_id: guildId })
+    const count = await this.roleModel.countDocuments({
+      guild_id: guildId,
+      deleted: false,
+    })
     const role = new this.roleModel()
     role.id = new UniqueID(config.snowflake).getUniqueID()
     role.guild_id = guildId
@@ -398,12 +415,68 @@ export class GuildsService {
     return cleanedRole
   }
 
+  async deleteRole(
+    guildId: string,
+    roleId: string,
+    userId: string,
+  ): Promise<void> {
+    if (!this.isMember(guildId, userId)) throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(guildId, userId)
+    if (
+      !(
+        perms &
+        (ComputedPermissions.OWNER |
+          ComputedPermissions.ADMINISTRATOR |
+          ComputedPermissions.MANAGE_ROLES)
+      )
+    )
+      throw new ForbiddenException()
+    const admin =
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_ROLES)
+    const role = await this.roleModel.findOne({ id: roleId, deleted: false })
+    const roles = await this.roleModel
+      .find({ guild_id: guildId, members: userId })
+      .sort({ position: -1 })
+    if (roles[0].position <= role.position && !admin)
+      throw new ForbiddenException()
+    role.deleted = true
+    await role.save()
+
+    await this.roleModel.updateMany(
+      {
+        guild_id: guildId,
+        deleted: false,
+        position: {
+          $gte: role.position,
+          $ne: 999,
+        },
+      },
+      { $inc: { position: 1 } },
+    )
+
+    const data = {
+      event: 'guild.role_deleted',
+      data: { id: roleId },
+    }
+    this.eventEmitter.emit('guild.role_deleted', data, guildId)
+
+    return
+  }
+
   async patchRole(
     guildId: string,
     roleId: string,
     patchRoleDto: RoleDto,
   ): Promise<RoleResponse> {
-    const role = await this.roleModel.findOne({ id: roleId, guild_id: guildId })
+    const role = await this.roleModel.findOne({
+      id: roleId,
+      guild_id: guildId,
+      deleted: false,
+    })
+    if (!role) throw new NotFoundException()
     if (patchRoleDto.name) role.name = patchRoleDto.name
     if (patchRoleDto.color) role.color = patchRoleDto.color
     if (patchRoleDto.hoist && !role.default) role.hoist = patchRoleDto.hoist
@@ -424,6 +497,7 @@ export class GuildsService {
         await this.roleModel.updateMany(
           {
             guild_id: role.guild_id,
+            deleted: false,
             position: {
               $gte: patchRoleDto.position,
               $lt: role.position,
@@ -436,6 +510,7 @@ export class GuildsService {
         await this.roleModel.updateMany(
           {
             guild_id: role.guild_id,
+            deleted: false,
             position: {
               $lte: patchRoleDto.position,
               $gt: role.position,

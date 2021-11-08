@@ -59,6 +59,9 @@ export class Channel {
 
   @Prop()
   last_pin_timestamp?: number
+
+  @Prop({ default: false })
+  deleted?: boolean
 }
 
 export enum ChannelType {

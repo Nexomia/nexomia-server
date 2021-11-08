@@ -38,6 +38,14 @@ export class ChannelsController {
     return await this.channelsService.deleteChannel(channelId)
   }*/
 
+  @Delete(':channelId')
+  async deleteChannel(
+    @Param() params,
+    @DUser() user: AccessToken,
+  ): Promise<void> {
+    return this.channelsService.deleteChannel(params.channelId, user.id)
+  }
+
   @Get(':channelId/messages')
   async messages(
     @Param('channelId') channelId,

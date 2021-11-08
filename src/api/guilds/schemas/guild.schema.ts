@@ -167,6 +167,9 @@ export class Guild {
   @Prop()
   nsfw?: boolean
 
+  @Prop({ default: false })
+  deleted?: boolean
+
   @Prop()
   emoji_packs_ids?: string[]
 

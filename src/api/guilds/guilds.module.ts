@@ -1,6 +1,7 @@
 import { MongooseModule } from '@nestjs/mongoose'
 import { CacheModule, Module } from '@nestjs/common'
 import { Invite, InviteSchema } from '../invites/schemas/invite.schema'
+import { MessageSchema, Message } from './../channels/schemas/message.schema'
 import { EmojisModule } from './../emojis/emojis.module'
 import { ParserUtils } from './../../utils/parser/parser.utils'
 import { ParserModule } from './../../utils/parser/parser.module'
@@ -24,6 +25,7 @@ import { GuildsController } from './guilds.controller'
     MongooseModule.forFeature([
       { name: Guild.name, schema: GuildSchema },
       { name: Channel.name, schema: ChannelSchema },
+      { name: Message.name, schema: MessageSchema },
       { name: User.name, schema: UserSchema },
       { name: Role.name, schema: RoleSchema },
       { name: Invite.name, schema: InviteSchema },

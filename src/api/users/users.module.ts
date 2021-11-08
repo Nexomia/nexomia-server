@@ -17,8 +17,8 @@ import { UsersService } from './users.service'
   imports: [
     EmojisModule,
     FilesModule,
-    ChannelsModule,
     GuildsModule,
+    ChannelsModule,
     CacheModule.register({
       ttl: 60 * 60 * 24 * 365,
     }),

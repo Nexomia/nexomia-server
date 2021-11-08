@@ -39,6 +39,9 @@ export class Role {
 
   @Prop({ default: false })
   default?: boolean
+
+  @Prop({ default: false })
+  deleted?: boolean
 }
 
 export const RoleSchema = SchemaFactory.createForClass(Role)

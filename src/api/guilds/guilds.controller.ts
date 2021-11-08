@@ -137,8 +137,20 @@ export class GuildsController {
         ComputedPermissions.ADMINISTRATOR |
         ComputedPermissions.MANAGE_ROLES)
     )
-      return await this.guildsService.createRole(guildId, createRoleDto)
+      return await this.guildsService.createRole(
+        guildId,
+        createRoleDto,
+        user.id,
+      )
     else throw new ForbiddenException()
+  }
+  @Post(':guildId/roles/:roleId')
+  async deleteRole(@Param() params, @DUser() user: AccessToken): Promise<void> {
+    return await this.guildsService.deleteRole(
+      params.guildId,
+      params.roleId,
+      user.id,
+    )
   }
 
   @Patch(':guildId/roles/:roleId')

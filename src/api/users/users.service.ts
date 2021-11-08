@@ -82,11 +82,11 @@ export class UsersService {
           },
         },
       ])
-      console.log(emojiPacks)
       user.emoji_packs = <EmojiPackResponse[]>emojiPacks.map(
         (pack: EmojiPack) => {
           pack.emojis.map((emoji: Emoji) => {
-            emoji.url = `https://cdn.nx.wtf/${emoji.id}/${pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
+            emoji.url = `https://cdn.nx.wtf/${emoji.id}/${
+              pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
             }.webp`
             return EmojiResponseValidate(emoji)
           })
@@ -260,9 +260,12 @@ export class UsersService {
   }
 
   async getChannels(userId): Promise<ChannelResponse[]> {
-    return (await this.channelModel.find({ recipients: { $in: userId } })).map(
-      ChannelResponseValidate,
-    )
+    return (
+      await this.channelModel.find({
+        recipients: { $in: userId },
+        deleted: false,
+      })
+    ).map(ChannelResponseValidate)
   }
 
   async createChannel(
@@ -325,6 +328,24 @@ export class UsersService {
     this.eventEmitter.emit('channel.created', data, channel.id)
 
     return cleanedChannel
+  }
+
+  async deleteChannel(userId: string, channelId: string): Promise<void> {
+    const channel = await this.channelModel.findOne({
+      id: channelId,
+      owner_id: userId,
+      deleted: false,
+    })
+    if (!channel) throw new NotFoundException()
+    this.channelModel.updateOne({ id: channelId }, { $set: { deleted: true } })
+
+    const data = {
+      event: 'channel.deleted',
+      data: { id: channelId },
+    }
+    this.eventEmitter.emit('channel.deleted', data, channelId)
+
+    return
   }
 
   async addEmojiPack(packId: string, userId: string): Promise<void> {
