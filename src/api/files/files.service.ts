@@ -283,7 +283,7 @@ export class FilesService {
     return Promise.all([
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=256:256`])
+          .outputOptions([`-vf crop=${cropSize},scale=256:256,setsar=1:1`])
           .saveToFile(`${path}.256.webp`)
           .on('end', async () => {
             const data = {
@@ -301,7 +301,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=112:112`])
+          .outputOptions([`-vf crop=${cropSize},scale=112:112,setsar=1:1`])
           .saveToFile(`${path}.112.webp`)
           .on('end', async () => {
             const data = {
@@ -318,7 +318,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=40:40`])
+          .outputOptions([`-vf crop=${cropSize},scale=40:40,setsar=1:1`])
           .saveToFile(`${path}.40.webp`)
           .on('end', async () => {
             const data = {
@@ -335,7 +335,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=34:34`])
+          .outputOptions([`-vf crop=${cropSize},scale=34:34,setsar=1:1`])
           .saveToFile(`${path}.34.webp`)
           .on('end', async () => {
             const data = {
@@ -362,19 +362,20 @@ export class FilesService {
     let animated = false
     if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     let cropSize: string
-    if (fileInfo.streams[0].width / fileInfo.streams[0].height > 1.77) {
-      cropSize = `${Math.round(fileInfo.streams[0].height * 1.78)}:${
+    if (fileInfo.streams[0].width / fileInfo.streams[0].height > 16 / 9) {
+      cropSize = `${Math.round(fileInfo.streams[0].height * (16 / 9))}:${
         fileInfo.streams[0].height
       }`
     } else {
       cropSize = `${fileInfo.streams[0].width}:${Math.round(
-        fileInfo.streams[0].width / 1.78,
+        fileInfo.streams[0].width / (16 / 9),
       )}`
     }
+    console.log(cropSize)
     return Promise.all([
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=1600:900`])
+          .outputOptions([`-vf crop=${cropSize},scale=1600:900,setsar=1:1`])
           .saveToFile(`${path}.banner.webp`)
           .on('end', async () => {
             const data = {
@@ -392,7 +393,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=320:180`])
+          .outputOptions([`-vf crop=${cropSize},scale=320:180,setsar=1:1`])
           .saveToFile(`${path}.320.webp`)
           .on('end', async () => {
             const data = {
@@ -429,7 +430,7 @@ export class FilesService {
     return Promise.all([
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=256:256`])
+          .outputOptions([`-vf crop=${cropSize},scale=256:256,setsar=1:1`])
           .saveToFile(`${path}.sticker.webp`)
           .on('end', async () => {
             const data = {
@@ -447,7 +448,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=128:128`])
+          .outputOptions([`-vf crop=${cropSize},scale=128:128,setsar=1:1`])
           .saveToFile(`${path}.128.webp`)
           .on('end', async () => {
             const data = {
@@ -464,7 +465,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=64:64`])
+          .outputOptions([`-vf crop=${cropSize},scale=64:64,setsar=1:1`])
           .saveToFile(`${path}.64.webp`)
           .on('end', async () => {
             const data = {
@@ -481,7 +482,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=32:32`])
+          .outputOptions([`-vf crop=${cropSize},scale=32:32,setsar=1:1`])
           .saveToFile(`${path}.32.webp`)
           .on('end', async () => {
             const data = {
@@ -519,7 +520,7 @@ export class FilesService {
     return Promise.all([
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=-1:48`])
+          .outputOptions([`-vf crop=${cropSize},scale=-1:48,setsar=1:1`])
           .saveToFile(`${path}.emoji.webp`)
           .on('end', async () => {
             const data = {
@@ -537,7 +538,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=-1:32`])
+          .outputOptions([`-vf crop=${cropSize},scale=-1:32,setsar=1:1`])
           .saveToFile(`${path}.32.webp`)
           .on('end', async () => {
             const data = {
@@ -554,7 +555,7 @@ export class FilesService {
       }),
       new Promise((resolve) => {
         ffmpeg(path)
-          .outputOptions([`-vf crop=${cropSize},scale=-1:22`])
+          .outputOptions([`-vf crop=${cropSize},scale=-1:22,setsar=1:1`])
           .saveToFile(`${path}.22.webp`)
           .on('end', async () => {
             const data = {
