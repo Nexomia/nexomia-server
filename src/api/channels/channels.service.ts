@@ -305,11 +305,12 @@ export class ChannelsService {
     if (
       !(
         messageDto.content ||
-        messageDto.forwarded_messages ||
+        messageDto.forwarded_messages.length ||
         messageDto.sticker ||
-        messageDto.attachments ||
+        messageDto.attachments.length ||
         systemData?.type
-      )
+      ) &&
+      messageDto.content == ''
     )
       throw new BadRequestException()
 
