@@ -90,6 +90,9 @@ export class UsersService {
             }.webp`
             return EmojiResponseValidate(emoji)
           })
+          if (pack.icon)
+            pack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
+          else pack.icon = pack.emojis[0].url
           return EmojiPackResponseValidate(pack)
         },
       )

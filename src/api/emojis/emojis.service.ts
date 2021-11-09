@@ -75,6 +75,7 @@ export class EmojisService {
       pack.emojis = emojis
     }
     if (pack.icon) pack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
+    else pack.icon = emojis[0].url
     const packResponse = EmojiPackResponseValidate(pack)
     return packResponse
   }
