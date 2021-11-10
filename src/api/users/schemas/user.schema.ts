@@ -130,7 +130,7 @@ export class User extends Connected {
    * 3 - DnD
    * 4 - offline
    */
-  @Prop({ default: 4 })
+  @Prop({ default: 1 })
   presence?: number
 
   @Prop()
