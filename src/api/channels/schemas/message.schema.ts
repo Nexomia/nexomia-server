@@ -100,6 +100,9 @@ export class Message {
   @Prop()
   reaction_ids?: string[]
 
+  @Prop()
+  emoji_ids?: string[]
+
   /**
    * Ids of users specifically mentioned in the message
    */
@@ -110,7 +113,7 @@ export class Message {
    * 	Id of attached sticker
    */
   @Prop()
-  sticker?: string
+  sticker_id?: string
 
   /**
    * Whether this message was deleted
@@ -128,6 +131,10 @@ export class Message {
    * Any attached files
    */
   attachments?: Attachment[] | null
+
+  emojis: EmojiResponse[]
+
+  sticker: EmojiResponse
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message)

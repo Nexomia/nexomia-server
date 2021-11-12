@@ -1,5 +1,6 @@
 import myzod, { Infer } from 'myzod'
 import { User } from '../../users/schemas/user.schema'
+import { EmojiResponseSchema } from './../../emojis/responses/emoji.response'
 import { FileDocument } from './../../files/schemas/file.schema'
 import { Message } from './../schemas/message.schema'
 
@@ -14,7 +15,7 @@ const MessageResponseSchema = myzod.object({
   created: myzod.number(),
   edited: myzod.boolean(),
   edit_time: myzod.number().optional(),
-  sticker: myzod.string().optional(),
+  sticker: EmojiResponseSchema.allowUnknownKeys().optional(),
   embeds: myzod.array(myzod.unknown()),
   mentions: myzod.array(myzod.string()),
   reactions: myzod.array(myzod.unknown()),

@@ -169,85 +169,131 @@ export class ChannelsService {
           as: 'forwarded_compiled',
         },
       },
-      {
-        $lookup: {
-          from: 'files',
-          localField: 'attachment_ids',
-          foreignField: 'id',
-          as: 'attachments_compiled',
-        },
-      },
-      {
-        $addFields: {
-          fwd_atch_ids: {
-            $map: {
-              input: '$forwarded_compiled',
-              as: 'fwd',
-              in: '$$fwd.attachment_ids',
-            },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'author',
-          foreignField: 'id',
-          as: 'userObject',
-        },
-      },
-      {
-        $unwind: '$userObject',
-      },
-      {
-        $addFields: {
-          f_ids: {
-            $map: {
-              input: '$forwarded_compiled',
-              as: 'fwd',
-              in: '$$fwd.author',
-            },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'f_ids',
-          foreignField: 'id',
-          as: 'forwarded_compiled_users',
-        },
-      },
-      {
-        $lookup: {
-          from: 'emojis',
-          localField: 'reaction_ids',
-          foreignField: 'id',
-          as: 'emojis_compiled',
-        },
-      },
     ])
-    let att_ids = []
-    data.map((mess) => {
-      if (mess.fwd_atch_ids.length) {
-        att_ids = att_ids.concat(mess.fwd_atch_ids[0])
+    let user_ids = []
+    let emoji_ids = []
+    let file_ids = []
+    data.forEach((mess) => {
+      user_ids.push(mess.author)
+
+      if (mess.attachment_ids?.length) {
+        file_ids = file_ids.concat(mess.attachment_ids[0])
+      }
+      if (mess.sticker_id) {
+        emoji_ids.push(mess.sticker_id)
+        file_ids.push(mess.sticker_id)
+      }
+
+      if (mess.reactions?.length) {
+        mess.reactions.forEach(async (react) => {
+          if (!react.emoji_id.match(emojiRegex())) {
+            emoji_ids.push(react.emoji_id)
+          }
+          user_ids = user_ids.concat(react.users)
+        })
+      }
+
+      if (mess.emoji_ids?.length) {
+        emoji_ids = emoji_ids.concat(mess.emoji_ids)
+      }
+      if (mess.forwarded_compiled?.length) {
+        mess.forwarded_compiled.forEach(async (msg) => {
+          user_ids.push(msg.author)
+
+          if (msg.attachment_ids?.length) {
+            file_ids = file_ids.concat(msg.attachment_ids[0])
+          }
+          if (msg.sticker_id) {
+            emoji_ids.push(msg.sticker_id)
+            file_ids.push(mess.sticker_id)
+          }
+
+          if (msg.reactions?.length) {
+            msg.reactions.forEach(async (react) => {
+              const unicodeEmojiTest = react.emoji_id.match(emojiRegex())
+              if (!unicodeEmojiTest?.length) {
+                emoji_ids.push(react.emoji_id)
+              }
+              user_ids = user_ids.concat(react.users)
+            })
+          }
+        })
       }
     })
-    const compiled_atts = await this.fileModel.find({ id: { $in: att_ids } })
-    data.map((mess) => {
-      if (mess.fwd_atch_ids.length) {
-        mess.forwarded_compiled_attachments = []
-        for (const aid of mess.fwd_atch_ids[0]) {
-          const attIndex = compiled_atts.findIndex((att) => att.id == aid)
-          mess.forwarded_compiled_attachments.push(compiled_atts[attIndex])
+    const files = await this.fileModel.find({ id: { $in: file_ids } })
+    const users = await this.userModel.find({ id: { $in: user_ids } })
+    const emojis = await this.emojiModel.find({ id: { $in: emoji_ids } })
+
+    function encodeURI(text) {
+      return encodeURIComponent(text)
+        .replace(/['()]/g, escape)
+        .replace(/\*/g, '%2A')
+        .replace(/%(?:7C|60|5E)/g, unescape)
+    }
+
+    function parseMessage(message: AgreggatedMessage) {
+      const userIndex = users.findIndex((u) => u.id === message.author)
+      message.user = MessageUserValidate(users[userIndex])
+
+      message.forwarded_messages = []
+      if (message.forwarded_ids.length) {
+        for (const i in message.forwarded_compiled) {
+          message.forwarded_compiled[i] =
+            <AgreggatedMessage>(
+              message.forwarded_compiled[i].edit_history[
+                message.forwarded_revs[i]
+              ]
+            ) || message.forwarded_compiled[i]
+
+          message.forwarded_messages.push(
+            parseMessage(message.forwarded_compiled[i]),
+          )
         }
       }
-    })
+      message.attachments = []
+      if (message.attachment_ids?.length) {
+        message.attachment_ids.forEach((att_id) => {
+          const attIndex = files.findIndex((f) => f.id === att_id)
+          const att = files[attIndex]
+          if (!att) return
+
+          att.url = `https://cdn.nx.wtf/${att.id}/${encodeURI(att.name)}`
+          if (att?.data?.width)
+            att.data.preview_url = `https://cdn.nx.wtf/${att.id}/${encodeURI(
+              att.data.name,
+            )}`
+          message.attachments.push(MessageAttachmentValidate(att))
+        })
+      }
+      if (message.reaction_ids?.length) {
+        message.reactions.forEach((reaction, index) => {
+          const emojiIndex = emojis.findIndex(
+            (em) => em.id === reaction.emoji_id,
+          )
+          if (!reaction.emoji_id.match(emojiRegex())) {
+            const em = emojis[emojiIndex]
+            em.url = `https://cdn.nx.wtf/${em.id}/emoji.webp`
+            message.reactions[index].emoji = EmojiResponseValidate(em)
+          }
+        })
+      }
+      if (message.sticker_id) {
+        const indexSticker = emojis.findIndex(
+          (f) => f.id === message.sticker_id,
+        )
+        const em = emojis[indexSticker]
+        em.url = `https://cdn.nx.wtf/${em.id}/sticker.webp`
+
+        message.sticker = EmojiResponseValidate(emojis[indexSticker])
+      }
+      return MessageResponseValidate(<Message>message)
+    }
+
     if (!data.length && one) throw new NotFoundException()
-    if (one && filters?.ids.length === 1) return this.parseMessage(data[0])
+    if (one && filters?.ids.length === 1) return parseMessage(data[0])
 
     const ready = data
-      .map(this.parseMessage)
+      .map(parseMessage)
       .sort((a, b) => (a.created > b.created ? 1 : -1))
 
     return ready
@@ -306,7 +352,7 @@ export class ChannelsService {
       !(
         messageDto.content ||
         messageDto.forwarded_messages.length ||
-        messageDto.sticker ||
+        messageDto.sticker_id ||
         messageDto.attachments.length ||
         systemData?.type
       ) &&
@@ -314,8 +360,23 @@ export class ChannelsService {
     )
       throw new BadRequestException()
 
-    if (!messageDto.sticker)
-      message.content = messageDto?.content.replaceAll(/(\s){2,}/gm, ' ')
+    if (messageDto.sticker_id) {
+      const sticker = await this.emojiModel.findOne({
+        id: messageDto.sticker_id,
+      })
+      if (!sticker) throw new BadRequestException()
+      const stickerPack = await this.emojiPackModel.exists({
+        id: sticker.pack_id,
+        type: EmojiPackType.STICKER,
+      })
+      if (!stickerPack) throw new BadRequestException()
+      const user = await this.userModel.exists({
+        id: userId,
+        emoji_packs_ids: sticker.pack_id,
+      })
+      if (!user) throw new ForbiddenException()
+      message.sticker_id = messageDto.sticker_id
+    } else message.content = messageDto?.content.replaceAll(/(\s){2,}/gm, ' ')
 
     let forwarded_messages: Message[]
     const forwarded_messages_users_ids: string[] = []
@@ -1042,78 +1103,6 @@ export class ChannelsService {
     return code
   }
 
-  private parseMessage = (message: AgreggatedMessage) => {
-    message.user = MessageUserValidate(message.userObject)
-    message.forwarded_messages = []
-    if (message.forwarded_ids.length) {
-      for (const i in message.forwarded_compiled) {
-        message.forwarded_compiled[i] =
-          <ExtendedMessage>(
-            message.forwarded_compiled[i].edit_history[
-              message.forwarded_revs[i]
-            ]
-          ) || message.forwarded_compiled[i]
-        message.forwarded_compiled[i].user = MessageUserValidate(
-          message.forwarded_compiled_users[
-            message.forwarded_compiled_users.findIndex(
-              (user) => user.id === message.forwarded_compiled[i].author,
-            )
-          ],
-        )
-
-        message.forwarded_compiled[i].attachments = []
-        if (message.forwarded_compiled_attachments.length) {
-          console.log(message.forwarded_compiled_attachments)
-          message.forwarded_compiled_attachments.map((att) => {
-            att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
-              att.name,
-            )}`
-            if (att?.data?.width)
-              att.data.preview_url = `https://cdn.nx.wtf/${
-                att.id
-              }/${this.parser.encodeURI(att.data.name)}`
-            message.forwarded_compiled[i].attachments.push(
-              MessageAttachmentValidate(att),
-            )
-          })
-        }
-
-        message.forwarded_messages.push(
-          MessageResponseValidate(message.forwarded_compiled[i]),
-        )
-      }
-    }
-    message.attachments = []
-    if (message.attachment_ids?.length) {
-      for (const att of message.attachments_compiled) {
-        att.url = `https://cdn.nx.wtf/${att.id}/${this.parser.encodeURI(
-          att.name,
-        )}`
-        if (att?.data?.width)
-          att.data.preview_url = `https://cdn.nx.wtf/${
-            att.id
-          }/${this.parser.encodeURI(att.data.name)}`
-        message.attachments.push(MessageAttachmentValidate(att))
-      }
-    }
-    if (message.reaction_ids && message.reaction_ids.length > 0) {
-      message.reactions.forEach((reaction, index) => {
-        const emojiIndex = message.emojis_compiled.findIndex(
-          (em) => em.id === reaction.emoji_id,
-        )
-        if (!reaction.emoji_id.match(emojiRegex())) {
-          message.emojis_compiled[
-            emojiIndex
-          ].url = `https://cdn.nx.wtf/${message.emojis_compiled[emojiIndex].id}/emoji.webp`
-          message.reactions[index].emoji = EmojiResponseValidate(
-            message.emojis_compiled[emojiIndex],
-          )
-        }
-      })
-    }
-    return MessageResponseValidate(message)
-  }
-
   isMember = async (channelId, userId) => {
     return await this.channelModel.exists({ id: channelId, recipients: userId })
   }
@@ -1127,11 +1116,12 @@ class AgrMessage {
   userObject: User
   forwarded_compiled_users: UserDocument[]
   forwarded_messages: MessageResponse[]
-  forwarded_compiled: ExtendedMessage[]
+  forwarded_compiled: AgreggatedMessage[]
   attachments: MessageAttachment[]
   attachments_compiled: FileDocument[]
   forwarded_compiled_attachments: FileDocument[]
   emojis_compiled: EmojiDocument[]
+  main_file_ids: string[]
 }
 
 class extMessage {

@@ -6,7 +6,7 @@ export const EmojiResponseSchema = myzod.object({
   id: myzod.string(),
   pack_id: myzod.string(),
   name: myzod.string(),
-  user_id: myzod.string(),
+  // user_id: myzod.string(),
   words: myzod.array(myzod.string()).optional(),
   animated: myzod.boolean().optional(),
   deleted: myzod.boolean().optional(),

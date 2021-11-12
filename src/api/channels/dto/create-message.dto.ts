@@ -50,7 +50,7 @@ export class CreateMessageDto {
    */
   @IsOptional()
   @IsString()
-  sticker?: string
+  sticker_id?: string
 
   @IsOptional()
   @IsArray()
