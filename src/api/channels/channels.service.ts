@@ -177,7 +177,7 @@ export class ChannelsService {
       user_ids.push(mess.author)
 
       if (mess.attachment_ids?.length) {
-        file_ids = file_ids.concat(mess.attachment_ids[0])
+        file_ids = file_ids.concat(mess.attachment_ids)
       }
       if (mess.sticker_id) {
         emoji_ids.push(mess.sticker_id)
@@ -376,7 +376,10 @@ export class ChannelsService {
       })
       if (!user) throw new ForbiddenException()
       message.sticker_id = messageDto.sticker_id
-    } else message.content = messageDto?.content.replaceAll(/(\s){2,}/gm, ' ')
+    } else {
+      message.content = messageDto?.content.replaceAll(/(\s){2,}/gm, ' ')
+      // const emojis = message.content.matchAll()
+    }
 
     let forwarded_messages: Message[]
     const forwarded_messages_users_ids: string[] = []
@@ -1123,12 +1126,5 @@ class AgrMessage {
   emojis_compiled: EmojiDocument[]
   main_file_ids: string[]
 }
-
-class extMessage {
-  user: UserResponse
-  attachments: MessageAttachment[]
-}
-
-type ExtendedMessage = extMessage & Message
 
 type AgreggatedMessage = AgrMessage & Message
