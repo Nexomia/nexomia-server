@@ -33,3 +33,12 @@ $ yarn run test:e2e
 # test coverage
 $ yarn run test:cov
 ```
+## Docs
+
+```bash
+# generate autodocs
+$ npx @compodoc/compodoc -p tsconfig.json -s
+
+# url
+[http://127.0.0.1:8080](http://127.0.0.1:8080/)
+```

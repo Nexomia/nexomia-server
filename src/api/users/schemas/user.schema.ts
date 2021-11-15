@@ -1,6 +1,7 @@
-import { Fingerprint } from './../../../interfaces/fingerprint.interface';
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { Document } from 'mongoose'
+import { EmojiPackResponse } from './../../emojis/responses/emojiPack.response'
+import { Fingerprint } from './../../../interfaces/fingerprint.interface'
 
 class Connected {
   connected: boolean
@@ -10,117 +11,117 @@ class Connected {
 export class User extends Connected {
   /**
    * The user's id
-   */  
+   */
   @Prop({ unique: true })
-  id: string;
+  id: string
 
   /**
    * The user's username, not unique across the platform
    */
   @Prop({ required: true, unique: true })
-  username?: string;
+  username?: string
 
   /**
    * The user's 4-digit nexo-tag
    */
   @Prop({ required: true })
-  discriminator?: string;
+  discriminator?: string
 
   /**
    * The user's email
    */
   @Prop({ required: true, unique: true })
-  email?: string;
+  email?: string
 
   /**
    * The user's password
    */
   @Prop({ required: true })
-  password?: string;
+  password?: string
 
   /**
    * Whether the user belongs to an OAuth2 application
    */
   @Prop({ default: false })
-  bot?: boolean;
+  bot?: boolean
 
   /**
    * 	Whether the user is an Official Discord System user (part of the urgent message system)
    */
   @Prop({ default: false })
-  system?: boolean;
+  system?: boolean
 
   /**
    * Whether the email on this account has been verified
    */
   @Prop({ default: false })
-  verified?: boolean;
+  verified?: boolean
 
   /**
    * The flags on a user's account
    */
   @Prop({ default: 0 })
-  flags?: number;
+  flags?: number
 
   /**
    * The public flags on a user's account
    */
   @Prop({ default: 0 })
-  public_flags?: number;
+  public_flags?: number
 
   /**
    * The type of Nitro subscription on a user's account
    */
   @Prop({ default: false })
-  premium_type?: boolean;
+  premium_type?: boolean
 
   /**
    * whether the user is banned
    */
   @Prop({ default: false })
-  banned?: boolean;
+  banned?: boolean
 
   /**
    * The user's refresh tokens
    */
   @Prop()
-  tokens?: RefreshToken[];
+  tokens?: RefreshToken[]
 
   /**
    * The user's guilds
    */
   @Prop()
-  guilds?: string[];
+  guilds?: string[]
 
   /**
    * The user's friends
    */
   @Prop()
-  friends?: string[];
+  friends?: string[]
 
   /**
    * The user's avatar
    */
   @Prop({ default: '' })
-  avatar?: string;
+  avatar?: string
 
   /**
    * The user's banner
    */
   @Prop({ default: '' })
-  banner?: string;
+  banner?: string
 
   /**
    * The user's status
    */
   @Prop({ default: '' })
-  status?: string;
+  status?: string
 
   /**
    * The user's profile description
    */
   @Prop({ default: '' })
-  description?: string;
+  description?: string
 
   /**
    * The user's activity status
@@ -129,17 +130,22 @@ export class User extends Connected {
    * 3 - DnD
    * 4 - offline
    */
-  @Prop({ default: 4 })
-  presence?: 1 | 2 | 3 | 4;
+  @Prop({ default: 1 })
+  presence?: number
+
+  @Prop()
+  emoji_packs_ids?: string[]
+
+  emoji_packs?: EmojiPackResponse[]
 }
 
 export class RefreshToken {
-  token: string;
-  ip: string;
-  fingerprint: Fingerprint;
-  created: number;
+  token: string
+  ip: string
+  fingerprint: Fingerprint
+  created: number
 }
 
-export type UserDocument = User & Document;
+export type UserDocument = User & Document
 
-export const UserSchema = SchemaFactory.createForClass(User);
+export const UserSchema = SchemaFactory.createForClass(User)

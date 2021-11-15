@@ -1,16 +1,22 @@
-import { RefreshToken } from './../users/schemas/user.schema';
-import { Fingerprint } from './../../interfaces/fingerprint.interface';
-import { config } from './../../app.config';
-import { EmailService } from './../../utils/email/email.service';
-import { RegAuthDto } from './dto/reg-auth.dto';
-import { SaltService } from './../../utils/salt/salt.service';
-import { LoginUserDto } from './dto/login-auth.dto';
-import { User, UserDocument } from '../users/schemas/user.schema';
-import { InjectModel } from '@nestjs/mongoose';
-import { BadRequestException, Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
-import { Model } from 'mongoose';
-import { JwtService } from 'src/utils/jwt/jwt.service';
-import { UniqueID } from 'nodejs-snowflake';
+import crypto from 'crypto'
+import { InjectModel } from '@nestjs/mongoose'
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common'
+import { Model } from 'mongoose'
+import { JwtService } from 'utils/jwt/jwt.service'
+import { UniqueID } from 'nodejs-snowflake'
+import { User, UserDocument } from '../users/schemas/user.schema'
+import { RefreshToken } from './../users/schemas/user.schema'
+import { Fingerprint } from './../../interfaces/fingerprint.interface'
+import { config } from './../../app.config'
+import { EmailService } from './../../utils/email/email.service'
+import { RegAuthDto } from './dto/reg-auth.dto'
+import { SaltService } from './../../utils/salt/salt.service'
+import { LoginUserDto } from './dto/login-auth.dto'
 
 @Injectable()
 export class AuthService {
@@ -18,39 +24,52 @@ export class AuthService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private saltService: SaltService,
     private jwtService: JwtService,
-    private emailService: EmailService
+    private emailService: EmailService,
   ) {}
 
-  async login(loginUserDto: LoginUserDto, fingerprint: Fingerprint, ip: string) {
+  async login(
+    loginUserDto: LoginUserDto,
+    fingerprint: Fingerprint,
+    ip: string,
+  ) {
     const user = await this.userModel.findOne({
       email: loginUserDto.login,
       password: this.saltService.password(loginUserDto.password),
     })
     if (!user) throw new NotFoundException()
-    const tokens = await this.jwtService.createTokens(user.id,true, [], fingerprint)
+    const tokens = await this.jwtService.createTokens(
+      user.id,
+      true,
+      [],
+      fingerprint,
+    )
     const refreshToken: RefreshToken = {
       token: tokens.refreshToken,
       ip: ip || '::1',
       fingerprint,
-      created: Date.now()
+      created: Date.now(),
     }
     user.tokens.push(refreshToken)
     await user.save()
-    return { access_token: tokens.accessToken, refresh_token: tokens.refreshToken }
+    return {
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+    }
   }
 
   async register(regAuthDto: RegAuthDto) {
     const user = new this.userModel()
     user.id = new UniqueID(config.snowflake).getUniqueID()
     user.username = regAuthDto.username
-    user.discriminator = require('crypto').randomBytes(2).toString('hex')
+    user.discriminator = crypto.randomBytes(2).toString('hex')
     user.email = regAuthDto.email
     user.password = this.saltService.password(regAuthDto.password)
-    return user.save()
+    return user
+      .save()
       .then(async (createdUser: UserDocument) => {
         const token = await this.jwtService.createCustomToken(
-        { uid: createdUser.id },
-        config.jwt.emailTokenExpires
+          { uid: createdUser.id },
+          config.jwt.emailTokenExpires,
         )
         this.emailService.sendEmailConfirmation(createdUser.email, token)
       })
@@ -65,7 +84,7 @@ export class AuthService {
     if (!decrypted) throw new UnauthorizedException()
     await this.userModel.updateOne(
       { id: decrypted.uid },
-      { $set: { verified: true } }
+      { $set: { verified: true } },
     )
     return
   }
@@ -73,18 +92,28 @@ export class AuthService {
   async getNewAccessToken(refreshToken: string, fp: Fingerprint) {
     const user = await this.userModel.findOne({ 'tokens.token': refreshToken })
     if (!user) throw new UnauthorizedException()
-    const tokenInfo: RefreshToken = user.tokens.find(token => token.token == refreshToken)
-    const tokenIndex = user.tokens.findIndex(token => token.token == refreshToken)
+    const tokenInfo: RefreshToken = user.tokens.find(
+      (token) => token.token == refreshToken,
+    )
+    const tokenIndex = user.tokens.findIndex(
+      (token) => token.token == refreshToken,
+    )
     if (
-      !tokenInfo
-      || tokenInfo.fingerprint.components.useragent.browser.family !== fp.components.useragent.browser.family
-      || tokenInfo.fingerprint.components.useragent.os.family !== fp.components.useragent.os.family
-    ) throw new UnauthorizedException()
+      !tokenInfo ||
+      tokenInfo.fingerprint.components.useragent.browser.family !==
+        fp.components.useragent.browser.family ||
+      tokenInfo.fingerprint.components.useragent.os.family !==
+        fp.components.useragent.os.family
+    )
+      throw new UnauthorizedException()
 
-    const tokens = await this.jwtService.createTokens(user.id,true, [], true)
+    const tokens = await this.jwtService.createTokens(user.id, true, [], true)
     user.tokens[tokenIndex].token = tokens.refreshToken
     user.markModified('tokens')
     await user.save()
-    return { access_token: tokens.accessToken, refresh_token: tokens.refreshToken }
+    return {
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+    }
   }
 }

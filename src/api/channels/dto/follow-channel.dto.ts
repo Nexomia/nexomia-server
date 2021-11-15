@@ -1,6 +1,9 @@
+import { IsNumberString } from 'class-validator'
+
 export class FollowChannelDto {
   /**
    * Id of target channel
    */
-  webhook_channel_id: string;
+  @IsNumberString()
+  webhook_channel_id: string
 }

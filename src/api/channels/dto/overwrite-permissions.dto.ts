@@ -1,16 +1,21 @@
+import { IsNumberString } from 'class-validator'
+
 export class OverwritePermissionsDto {
   /**
    * The bitwise value of all allowed permissions
    */
-  allow: string;
+  @IsNumberString()
+  allow: string
 
   /**
    * The bitwise value of all disallowed permissions
    */
-  deny: string;
+  @IsNumberString()
+  deny: string
 
   /**
    * 0 for a role or 1 for a member
    */
-  type: number;
+  @IsNumberString()
+  type: number
 }

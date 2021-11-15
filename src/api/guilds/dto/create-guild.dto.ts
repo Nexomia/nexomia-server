@@ -1,35 +1,53 @@
-import { Channel } from './../../channels/schemas/channel.schema';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsArray,
+  Length,
+} from 'class-validator'
+import { Channel } from './../../channels/schemas/channel.schema'
 export class CreateGuildDto {
-
   /**
    * Name of the guild (2-100 characters)
    */
-  name: string;
+  @IsString()
+  @Length(1, 20)
+  name: string
 
   /**
    * Voice region id
    */
-  region?: string;
+  @IsOptional()
+  @IsString()
+  region?: string
 
   /**
    * Base64 128x128 image for the guild icon
    */
-  icon?: string;
+  @IsOptional()
+  @IsString()
+  icon?: string
 
   /**
    * Verification level
    */
-  verification_level?: number;
+  @IsOptional()
+  @IsNumber()
+  verification_level?: number
 
   /**
    * Default message notification level
    */
-  default_message_notifications?: number;
+  @IsOptional()
+  @IsNumber()
+  default_message_notifications?: number
 
   /**
    * Explicit content filter level
    */
-  explicit_content_filter?: number;
+  @IsOptional()
+  @IsNumber()
+  explicit_content_filter?: number
 
   /**
    * New guild roles
@@ -39,26 +57,35 @@ export class CreateGuildDto {
   /**
    * New guild's channels
    */
-  channels?: Channel[];
-
+  @IsOptional()
+  @IsArray()
+  channels?: Channel[]
 
   /**
    * Id for afk channel
    */
-  afk_channel_id?: string;
+  @IsOptional()
+  @IsString()
+  afk_channel_id?: string
 
   /**
    * Afk timeout in seconds
    */
-  afk_timeout?: number;
+  @IsOptional()
+  @IsNumber()
+  afk_timeout?: number
 
   /**
    * The id of the channel where guild notices such as welcome messages and boost events are posted
    */
-  system_channel_id?: string;
+  @IsOptional()
+  @IsString()
+  system_channel_id?: string
 
   /**
    * System channel flags
    */
-  system_channel_flags?: number;
+  @IsOptional()
+  @IsNumber()
+  system_channel_flags?: number
 }

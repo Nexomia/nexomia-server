@@ -1,18 +1,22 @@
-import { IsNumber, IsNumberString, IsOptional } from 'class-validator';
+import { IsArray, IsNumberString, IsOptional } from 'class-validator'
 export class GetChannelMessagesDto {
   @IsOptional()
-  @IsNumberString()
-  offset?: string;
+  @IsArray()
+  ids?: string[]
 
   @IsOptional()
   @IsNumberString()
-  count?: string;
+  offset?: string
 
   @IsOptional()
   @IsNumberString()
-  after?: string;
+  count?: string
 
   @IsOptional()
   @IsNumberString()
-  before?: string;
+  after?: string
+
+  @IsOptional()
+  @IsNumberString()
+  before?: string
 }

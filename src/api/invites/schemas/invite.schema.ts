@@ -1,34 +1,33 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { Document } from 'mongoose'
 
 @Schema({ versionKey: false })
 export class Invite {
-
   @Prop({ unique: true })
-  code: string;
+  code: string
 
   @Prop()
-  guild_id?: string;
+  guild_id?: string
 
   @Prop()
-  channel_id?: string;
+  channel_id?: string
 
   @Prop()
-  inviter_id?: string;
+  inviter_id?: string
 
   @Prop()
-  expires_at?: number;
+  expires_at?: number
 
   @Prop()
-  max_uses?: number;
+  max_uses?: number
 
   @Prop({ default: 0 })
-  uses?: number;
+  uses?: number
 
   @Prop({ default: false })
-  temporary?: boolean;
+  temporary?: boolean
 }
 
-export type InviteDocument = Invite & Document;
+export type InviteDocument = Invite & Document
 
-export const InviteSchema = SchemaFactory.createForClass(Invite);
+export const InviteSchema = SchemaFactory.createForClass(Invite)

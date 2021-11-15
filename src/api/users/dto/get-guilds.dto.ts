@@ -1,5 +1,12 @@
+import { IsOptional } from 'class-validator'
+
 export class GetUserGuildsDto {
-  before?: string;
-  after?: string;
-  limit?: number;
+  @IsOptional()
+  before?: string
+
+  @IsOptional()
+  after?: string
+
+  @IsOptional()
+  limit?: number
 }

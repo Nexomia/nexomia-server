@@ -1,27 +1,20 @@
-import { AllowedMentions, Attachment, Embed, MessageReference } from './../schemas/message.schema';
+import { IsArray, IsNumberString, IsOptional } from 'class-validator'
+import { AllowedMentions, Attachment, Embed } from './../schemas/message.schema'
 export class EditMessageDto {
-  /**
-   * The message contents (up to 2000 characters)
-   */
-  content?: string;
+  @IsOptional()
+  @IsNumberString()
+  content?: string
 
-  /**
-   * The message contents (up to 2000 characters)
-   */
-  embed?: Embed;
+  @IsOptional()
+  embed?: Embed
 
-  /**
-   * The message contents (up to 2000 characters)
-   */
-  flags?: number;
+  @IsOptional()
+  allowed_mentions?: AllowedMentions
 
-  /**
-   * The message contents (up to 2000 characters)
-   */
-  allowed_mentions?: AllowedMentions;
+  @IsOptional()
+  attachments?: Attachment[]
 
-  /**
-   * The message contents (up to 2000 characters)
-   */
-  attachments?: Attachment[];
+  @IsOptional()
+  @IsArray()
+  forwarded_messages?: string[]
 }

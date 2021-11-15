@@ -1,7 +1,7 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { Document } from 'mongoose'
 
-export type RoleDocument = Role & Document;
+export type RoleDocument = Role & Document
 
 export class Permissions {
   allow: number
@@ -10,44 +10,46 @@ export class Permissions {
 
 @Schema({ versionKey: false })
 export class Role {
-
   @Prop({ unique: true })
-  id?: string;
+  id?: string
 
   @Prop()
-  guild_id: string;
+  guild_id: string
 
   @Prop({ default: 'new role' })
-  name?: string;
+  name?: string
 
   @Prop()
-  members: string[];
+  members: string[]
 
   @Prop()
-  permissions: Permissions;
+  permissions: Permissions
 
   @Prop({ default: '#fff' })
-  color?: string;
+  color?: string
 
   @Prop({ default: false })
-  hoist?: boolean;
+  hoist?: boolean
 
   @Prop()
-  position?: number;
+  position?: number
 
   @Prop({ default: true })
-  mentionable?: boolean;
+  mentionable?: boolean
 
   @Prop({ default: false })
-  default?: boolean;
+  default?: boolean
+
+  @Prop({ default: false })
+  deleted?: boolean
 }
 
-export const RoleSchema = SchemaFactory.createForClass(Role);
+export const RoleSchema = SchemaFactory.createForClass(Role)
 
 export enum ComputedPermissions {
   OWNER = 1 << 0,
   ADMINISTRATOR = 1 << 1,
-  CHANGE_MEMBER_NICKNAMES = 1 << 2, 
+  CHANGE_MEMBER_NICKNAMES = 1 << 2,
   CREATE_INVITES = 1 << 3,
   MANAGE_ROLES = 1 << 4,
   MANAGE_GUILD = 1 << 5,
@@ -65,5 +67,5 @@ export enum ComputedPermissions {
   ADD_REACTIONS = 1 << 17,
   ADD_EXTERNAL_REACTIONS = 1 << 18,
   BULK_DELETE = 1 << 19,
-  MANAGE_CHANNELS = 1 << 20
+  MANAGE_CHANNELS = 1 << 20,
 }

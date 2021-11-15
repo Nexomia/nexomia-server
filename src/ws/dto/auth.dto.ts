@@ -1,3 +1,6 @@
+import { IsString } from 'class-validator'
+
 export class AuthGatewayDto {
-  authorization: string;
+  @IsString()
+  authorization: string
 }

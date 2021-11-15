@@ -1,37 +1,37 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { User } from 'src/api/users/schemas/user.schema';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { Document } from 'mongoose'
+import { EmojiPackResponse } from './../responses/emojiPack.response'
 
-export type EmojiDocument = Emoji & Document;
+export type EmojiDocument = Emoji & Document
 
 @Schema()
 export class Emoji {
   @Prop({ unique: true })
-  id?: string; // emoji id
+  id: string // emoji id
+  @Prop()
+  file_id: string // emoji file id
 
   @Prop()
-  name?: string; // emoji name
+  pack_id: string //where emoji from
 
   @Prop()
-  roles?: string[]; // roles allowed to use this emoji
+  name: string // emoji name
 
   @Prop()
-  owner_id: string; // user object	user that created this emoji
+  words: string[]
 
   @Prop()
-  owner: boolean; // 0 - user, 1 - server
+  user_id: string
 
-  @Prop()
-  require_colons?: boolean; // whether this emoji must be wrapped in colons
+  @Prop({ default: false })
+  animated?: boolean // whether this emoji is animated
 
-  @Prop()
-  managed?: boolean; // whether this emoji is managed
+  @Prop({ default: false })
+  deleted: boolean
 
-  @Prop()
-  animated?: boolean; // whether this emoji is animated
+  url: string
 
-  @Prop()
-  available?: boolean; // whether this emoji can be used, may be false due to loss of Server Boosts
+  emoji_pack?: EmojiPackResponse
 }
 
-export const EmojiSchema = SchemaFactory.createForClass(Emoji);
+export const EmojiSchema = SchemaFactory.createForClass(Emoji)
