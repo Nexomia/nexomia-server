@@ -339,4 +339,30 @@ export class AppGateway
       return client.send(JSON.stringify(data))
     })
   }
+
+  @OnEvent('ROOT.*')
+  async root_events(ev) {
+    if (ev.event === 'ROOT.client_token_update') {
+      this.server.clients.forEach(async (client: any) => {
+        if (client.id == ev.session_id) {
+          const user:
+            | AccessToken
+            | boolean = await this.jwtService.decodeAccessToken(ev.token)
+          if (!user) return
+          const time = user.exp * 1000 - Date.now() - 60000
+          clearTimeout(client.timer)
+          client.timer = setTimeout(this.notifyClient.bind(this), time, client)
+          const event = 'auth.status'
+          const data = {
+            id: client.id,
+            uid: client.uid,
+            code: 3,
+            status: 'Token refreshed.',
+          }
+          return client.send(JSON.stringify({ event, data }))
+        }
+      })
+    }
+    return
+  }
 }
