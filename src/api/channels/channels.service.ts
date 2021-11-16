@@ -351,9 +351,9 @@ export class ChannelsService {
     if (
       !(
         messageDto.content ||
-        messageDto.forwarded_messages.length ||
+        messageDto.forwarded_messages?.length ||
         messageDto.sticker_id ||
-        messageDto.attachments.length ||
+        messageDto.attachments?.length ||
         systemData?.type
       ) &&
       messageDto.content == ''
@@ -377,7 +377,7 @@ export class ChannelsService {
       if (!user) throw new ForbiddenException()
       message.sticker_id = messageDto.sticker_id
     } else {
-      message.content = messageDto?.content.replaceAll(/(\s){2,}/gm, ' ')
+      message.content = messageDto.content?.replaceAll(/(\s){2,}/gm, ' ')
       // const emojis = message.content.matchAll()
     }
 
