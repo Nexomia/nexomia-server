@@ -270,7 +270,7 @@ export class ChannelsService {
           const emojiIndex = emojis.findIndex(
             (em) => em.id === reaction.emoji_id,
           )
-          if (!reaction.emoji_id.match(emojiRegex())) {
+          if (emojiIndex + 1) {
             const em = emojis[emojiIndex]
             em.url = `https://cdn.nx.wtf/${em.id}/emoji.webp`
             message.reactions[index].emoji = EmojiResponseValidate(em)
