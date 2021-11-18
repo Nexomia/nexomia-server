@@ -111,6 +111,13 @@ export class AppGateway
       cachedUser.connections = []
       cachedUser.connections.push(connection)
       await this.onlineManager.set(client.uid, JSON.stringify(cachedUser))
+      const data2 = {
+        event: 'user.connected',
+        data: {
+          id: client.uid,
+        },
+      }
+      this.eventEmitter.emit('user.connected', data2, user.id)
     } else {
       const connection = new UserConnection()
       connection.id = client.id
@@ -118,14 +125,6 @@ export class AppGateway
       cachedUser.connections.push(connection)
       await this.onlineManager.set(client.uid, JSON.stringify(cachedUser))
     }
-
-    const data2 = {
-      event: 'user.connected',
-      data: {
-        id: client.uid,
-      },
-    }
-    this.eventEmitter.emit('user.connected', data2, user.id)
 
     const event = 'auth.succeed'
     const data = {
@@ -139,13 +138,6 @@ export class AppGateway
   async handleDisconnect(client: any) {
     if (!client.id) return
     this.logger.log(client.id, 'Disconnected from socket')
-    const data = {
-      event: 'user.disconnected',
-      data: {
-        id: client.uid,
-      },
-    }
-    this.eventEmitter.emit('user.disconnected', data, client.uid)
 
     const cachedUser: CachedUser = JSON.parse(
       await this.onlineManager.get(client.uid),
@@ -170,6 +162,13 @@ export class AppGateway
         }
       }
       await this.onlineManager.del(client.uid)
+      const data = {
+        event: 'user.disconnected',
+        data: {
+          id: client.uid,
+        },
+      }
+      this.eventEmitter.emit('user.disconnected', data, client.uid)
     } else {
       const connectionIndex = cachedUser.connections.findIndex(
         (connection) => connection.id == client.id,
