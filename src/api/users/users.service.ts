@@ -100,7 +100,7 @@ export class UsersService {
     const cleanedUser = UserResponseValidate(user)
     if (me) return cleanedUser
     else {
-      const { email, verified, ...cleanedUser2 } = cleanedUser
+      const { email, ...cleanedUser2 } = cleanedUser
       return cleanedUser2
     }
   }
@@ -206,7 +206,7 @@ export class UsersService {
     )
     if (!modifiedUser.connected) modifiedUser.presence = 4
 
-    const { verified, email, ...cleanedUser } = modifiedUser
+    const { email, ...cleanedUser } = modifiedUser
 
     const data = {
       event: 'user.patched',
