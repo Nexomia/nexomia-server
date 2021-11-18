@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { EventEmitter2 } from '@nestjs/event-emitter'
 import { InjectModel } from '@nestjs/mongoose'
 import {
   BadRequestException,
@@ -25,6 +26,7 @@ export class AuthService {
     private saltService: SaltService,
     private jwtService: JwtService,
     private emailService: EmailService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async login(
@@ -89,7 +91,7 @@ export class AuthService {
     return
   }
 
-  async getNewAccessToken(refreshToken: string, fp: Fingerprint) {
+  async getNewAccessToken(refreshToken: string, fp: Fingerprint, session_id?) {
     const user = await this.userModel.findOne({ 'tokens.token': refreshToken })
     if (!user) throw new UnauthorizedException()
     const tokenInfo: RefreshToken = user.tokens.find(
@@ -111,6 +113,16 @@ export class AuthService {
     user.tokens[tokenIndex].token = tokens.refreshToken
     user.markModified('tokens')
     await user.save()
+    if (session_id) {
+      const data = {
+        event: 'ROOT.client_token_update',
+        data: {
+          session_id,
+          token: tokens.accessToken,
+        },
+      }
+      this.eventEmitter.emit('ROOT.client_token_update', data)
+    }
     return {
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,

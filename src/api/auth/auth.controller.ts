@@ -30,8 +30,13 @@ export class AuthController {
   @Get('/token')
   async getNewToken(
     @Headers('refreshToken') refreshToken: string,
+    @Headers('session_id') session_id: string,
     @DFingerprint() fingerprint: Fingerprint,
   ) {
-    return await this.authService.getNewAccessToken(refreshToken, fingerprint)
+    return await this.authService.getNewAccessToken(
+      refreshToken,
+      fingerprint,
+      session_id,
+    )
   }
 }

@@ -15,7 +15,6 @@ const UserResponseSchema = myzod.object({
   emoji_packs: myzod
     .array(EmojiPackResponseSchema.allowUnknownKeys().optional())
     .optional(),
-  verified: myzod.boolean(),
   premium_type: myzod.boolean(),
   public_flags: myzod.number().optional(),
   connected: myzod.boolean().optional(),
