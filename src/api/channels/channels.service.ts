@@ -305,7 +305,10 @@ export class ChannelsService {
     messageDto: CreateMessageDto,
     systemData?: any,
   ): Promise<MessageResponse> {
-    if (messageDto.content && messageDto.content.replaceAll(' ', '') === '')
+    if (
+      messageDto.content &&
+      messageDto.content.replaceAll(/(\n|\r)|(\s){2,}/g, '') === ''
+    )
       throw new BadRequestException()
 
     const channel = (await this.getExistsChannel(channelId)).toObject()
@@ -377,7 +380,7 @@ export class ChannelsService {
       if (!user) throw new ForbiddenException()
       message.sticker_id = messageDto.sticker_id
     } else {
-      message.content = messageDto.content?.replaceAll(/(\s){2,}/gm, ' ')
+      message.content = messageDto.content?.trim()
       // const emojis = message.content.matchAll()
     }
 
@@ -648,7 +651,7 @@ export class ChannelsService {
     if (!message) throw new NotFoundException()
 
     const cachedMessage = message.toObject()
-    if (messageDto.content && messageDto.content !== message.content) {
+    if (messageDto.content.trim() !== message.content) {
       message.content = messageDto.content
       changes++
     }
