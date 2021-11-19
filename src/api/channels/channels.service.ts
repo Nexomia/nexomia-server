@@ -907,7 +907,8 @@ export class ChannelsService {
 
   // async followChannel(channelId: string, followDto: FollowChannelDto) {}
 
-  async typing(channelId, userId) {
+  async typing(channelId, userId, type?) {
+    if (type && (type < 0 || type > 4)) throw new BadRequestException()
     const channel = (await this.getExistsChannel(channelId)).toObject()
     if (!channel) throw new BadRequestException()
     if (
@@ -939,6 +940,7 @@ export class ChannelsService {
       data: {
         user_id: userId,
         channel_id: channelId,
+        type: type || 0,
       },
     }
     this.eventEmitter.emit('channel.typing', data, channel?.guild_id)

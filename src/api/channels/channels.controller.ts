@@ -220,8 +220,12 @@ export class ChannelsController {
   }*/
 
   @Post(':channelId/typing')
-  async typing(@Param('channelId') channelId, @DUser() user: AccessToken) {
-    return await this.channelsService.typing(channelId, user.id)
+  async typing(
+    @Param('channelId') channelId,
+    @Body('type') type: string,
+    @DUser() user: AccessToken,
+  ) {
+    return await this.channelsService.typing(channelId, user.id, type)
   }
 
   @Put(':channelId/pins/:messageId')
