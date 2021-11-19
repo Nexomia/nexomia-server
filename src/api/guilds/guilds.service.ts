@@ -375,11 +375,6 @@ export class GuildsService {
     return RoleResponseValidate(role)
   }
 
-  async getInvites(guildId) {
-    const invites = await this.inviteModel.find({ guild_id: guildId }, '-_id')
-    return invites
-  }
-
   async createRole(
     guildId: string,
     createRoleDto: RoleDto,
@@ -541,6 +536,11 @@ export class GuildsService {
     return cleanedRole
   }
 
+  async getInvites(guildId) {
+    const invites = await this.inviteModel.find({ guild_id: guildId }, '-_id')
+    return invites
+  }
+
   async addEmojiPack(packId: string, guildId: string): Promise<void> {
     const guild = await this.guildModel.findOne({ id: guildId })
     if (guild.emoji_packs_ids.includes(packId)) throw new ConflictException()
@@ -567,8 +567,90 @@ export class GuildsService {
     return
   }
 
+  async addRoleMember(
+    guildId: string,
+    roleId: string,
+    memberId: string,
+    userId: string,
+  ) {
+    if (!(await this.isMember(guildId, memberId))) throw new NotFoundException()
+
+    const role = await this.roleModel.findOne({ id: roleId, guild_id: guildId })
+    if (!role) throw new BadRequestException()
+
+    const positions = this.getPositions(userId, memberId)
+    if (positions[0] >= role.position) throw new ForbiddenException()
+
+    if (role.members.indexOf(memberId) + 1) throw new ConflictException()
+
+    role.members.push(memberId)
+    role.markModified('members')
+    await role.save()
+
+    const data = {
+      event: 'guild.role_member_added',
+      data: {
+        role_id: role.id,
+        member_id: memberId,
+      },
+    }
+    this.eventEmitter.emit('guild.role_member_added', data, guildId)
+  }
+
+  async removeRoleMember(
+    guildId: string,
+    roleId: string,
+    memberId: string,
+    userId: string,
+  ) {
+    if (!(await this.isMember(guildId, memberId))) throw new NotFoundException()
+
+    const role = await this.roleModel.findOne({ id: roleId, guild_id: guildId })
+    if (!role) throw new BadRequestException()
+
+    const positions = this.getPositions(userId, memberId)
+    if (positions[0] >= role.position) throw new ForbiddenException()
+
+    const memberIndex = role.members.indexOf(memberId)
+    if (!(memberIndex + 1)) throw new ConflictException()
+
+    role.members.splice(memberIndex, 1)
+    role.markModified('members')
+    await role.save()
+
+    const data = {
+      event: 'guild.role_member_removed',
+      data: {
+        role_id: role.id,
+        member_id: memberId,
+      },
+    }
+    this.eventEmitter.emit('guild.role_member_removed', data, guildId)
+  }
+
+  async getMemberRoles(guildId: string, memberId: string) {
+    if (!(await this.isMember(guildId, memberId))) throw new NotFoundException()
+    const roles = await this.roleModel.find({ member: memberId })
+    return roles.map(RoleResponseValidate)
+  }
+
   async isMember(guildId: string, userId: string) {
     return await this.guildModel.exists({ id: guildId, 'members.id': userId })
+  }
+  async getPositions(first: string, second: string) {
+    const roles = await this.roleModel.find({
+      $or: [{ members: first }, { members: second }],
+    })
+
+    let positionFirst: number
+    let positionSecond: number
+    roles.forEach((role) => {
+      if (!positionFirst && role.members.includes(first))
+        positionFirst = role.position
+      if (!positionSecond && role.members.includes(second))
+        positionSecond = role.position
+    })
+    return [positionFirst, positionSecond]
   }
 }
 

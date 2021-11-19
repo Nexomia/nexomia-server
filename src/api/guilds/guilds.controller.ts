@@ -226,4 +226,51 @@ export class GuildsController {
       params.guildId,
     )
   }
+
+  @Put(':guildId/members/:memberId/roles/:roleId')
+  async putMemberRole(@Param() params, @DUser() user: AccessToken) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_ROLES)
+    )
+      return await this.guildsService.addRoleMember(
+        params.guildId,
+        params.roleId,
+        params.memberIs,
+        user.id,
+      )
+    else throw new ForbiddenException()
+  }
+
+  @Delete(':guildId/members/:memberId/roles/:roleId')
+  async deleteMemberRole(@Param() params, @DUser() user: AccessToken) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_ROLES)
+    )
+      return await this.guildsService.removeRoleMember(
+        params.guildId,
+        params.roleId,
+        params.memberIs,
+        user.id,
+      )
+    else throw new ForbiddenException()
+  }
+
+  @Get(':guildId/members/:memberId/roles')
+  async getMemberRoles(@Param() params, @DUser() user: AccessToken) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    return
+  }
 }
