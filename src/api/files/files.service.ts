@@ -272,8 +272,6 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(path)
-    if (fileInfo.streams[0].width < 256 || fileInfo.streams[0].height < 256)
-      throw new BadRequestException()
     let animated = false
     if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     const cropSize =
@@ -357,8 +355,6 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(path)
-    if (fileInfo.streams[0].width < 1600 || fileInfo.streams[0].height < 900)
-      throw new BadRequestException('Banner must be at least 1600x900')
     let animated = false
     if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     let cropSize: string
