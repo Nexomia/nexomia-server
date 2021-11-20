@@ -277,6 +277,14 @@ export class ChannelsService {
           }
         })
       }
+      if (message.emoji_ids?.length) {
+        message.emojis = []
+        message.emoji_ids.forEach((em) => {
+          const emoji = emojis.find((e) => e.id === em)
+          emoji.url = `https://cdn.nx.wtf/${emoji.id}/emoji.webp`
+          message.emojis.push(EmojiResponseValidate(emoji))
+        })
+      }
       if (message.sticker_id) {
         const indexSticker = emojis.findIndex(
           (f) => f.id === message.sticker_id,
@@ -306,8 +314,9 @@ export class ChannelsService {
     systemData?: any,
   ): Promise<MessageResponse> {
     if (
-      messageDto.content &&
-      messageDto.content.replaceAll(/(\n|\r)|(\s){2,}/g, '') === ''
+      messageDto.content === ' ' ||
+      (messageDto.content &&
+        messageDto.content.replaceAll(/(\n|\r)|(\s){2,}/g, '') === '')
     )
       throw new BadRequestException()
 
@@ -381,7 +390,33 @@ export class ChannelsService {
       message.sticker_id = messageDto.sticker_id
     } else {
       message.content = messageDto.content?.trim()
-      // const emojis = message.content.matchAll()
+      const emojisMatch = Array.from(
+        message.content.matchAll(/(<e:)([0-9]{1,})(>)/g),
+      )
+      const emoji_ids = []
+      emojisMatch.forEach((em) => {
+        emoji_ids.push(em[2])
+      })
+      if (emoji_ids.length) {
+        const pack_ids = []
+        const emojis = await this.emojiModel.find({ id: emoji_ids })
+        if (emojis) {
+          emojis.forEach((em) => {
+            pack_ids.push(em.pack_id)
+          })
+          const user = (await this.userModel.findOne({ id: userId })).toObject()
+          const allowed_packs = pack_ids.filter((id) =>
+            user.emoji_packs_ids.includes(id),
+          )
+          emojisMatch.forEach((e) => {
+            const emoji = emojis.find((em) => em.id === e[2])
+            if (emoji) {
+              if (allowed_packs.includes(emoji.pack_id))
+                message.emoji_ids.push(emoji.id)
+            }
+          })
+        }
+      }
     }
 
     let forwarded_messages: Message[]
@@ -651,8 +686,38 @@ export class ChannelsService {
     if (!message) throw new NotFoundException()
 
     const cachedMessage = message.toObject()
-    if (messageDto.content.trim() !== message.content) {
-      message.content = messageDto.content
+    if (
+      messageDto.content.trim() !== message.content &&
+      messageDto.content !== ' '
+    ) {
+      message.content = messageDto.content.trim()
+      const emojisMatch = Array.from(
+        message.content.matchAll(/(<e:)([0-9]{1,})(>)/g),
+      )
+      const emoji_ids = []
+      emojisMatch.forEach((em) => {
+        emoji_ids.push(em[2])
+      })
+      if (emoji_ids.length) {
+        const pack_ids = []
+        const emojis = await this.emojiModel.find({ id: emoji_ids })
+        if (emojis) {
+          emojis.forEach((em) => {
+            pack_ids.push(em.pack_id)
+          })
+          const user = (await this.userModel.findOne({ id: userId })).toObject()
+          const allowed_packs = pack_ids.filter((id) =>
+            user.emoji_packs_ids.includes(id),
+          )
+          emojisMatch.forEach((e) => {
+            const emoji = emojis.find((em) => em.id === e[2])
+            if (emoji) {
+              if (allowed_packs.includes(emoji.pack_id))
+                message.emoji_ids.push(emoji.id)
+            }
+          })
+        }
+      }
       changes++
     }
     let forwarded_messages: Message[]

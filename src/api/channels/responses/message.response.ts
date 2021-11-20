@@ -17,6 +17,7 @@ const MessageResponseSchema = myzod.object({
   edit_time: myzod.number().optional(),
   sticker: EmojiResponseSchema.allowUnknownKeys().optional(),
   embeds: myzod.array(myzod.unknown()),
+  emojis: myzod.array(myzod.unknown()).optional(),
   mentions: myzod.array(myzod.string()),
   reactions: myzod.array(myzod.unknown()),
   attachments: myzod.array(myzod.unknown()),
