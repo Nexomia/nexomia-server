@@ -1,3 +1,4 @@
+import CP from 'child_process'
 import { UniqueID } from 'nodejs-snowflake'
 import { InjectModel } from '@nestjs/mongoose'
 import {
@@ -66,6 +67,7 @@ export class FilesService {
   async uploadFile(multerFile: Express.Multer.File, fileId, userId) {
     if (!multerFile) throw new BadRequestException()
     if (multerFile.size > 52428800) throw new PayloadTooLargeException()
+    multerFile.mimetype = this.getMimeFromPath(multerFile.path)
 
     const file = await this.fileModel.findOne({ id: fileId, owner_id: userId })
     if (!file) throw new BadRequestException()
@@ -202,7 +204,11 @@ export class FilesService {
     fileId: string,
     file: Express.Multer.File,
   ): Promise<FilePreview> => {
-    const filedata = (await this.getFileData(file.path)).streams
+    const ffpData = await this.getFileData(file.path)
+    let filedata
+    if (ffpData?.streams) filedata = ffpData.streams
+    else return
+
     let filename: string
     let ffOutputOptions: string[]
     let mime: string
@@ -251,7 +257,7 @@ export class FilesService {
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(file.path)
     let animated = false
-    if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
+    if (fileInfo?.streams[0].avg_frame_rate !== '0/0') animated = true
     const data: UploadData = {
       mime: file.mimetype,
       name: file.originalname,
@@ -272,6 +278,7 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(path)
+    if (!fileInfo?.streams) throw new BadRequestException()
     let animated = false
     if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     const cropSize =
@@ -355,6 +362,7 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(path)
+    if (!fileInfo?.streams) throw new BadRequestException()
     let animated = false
     if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     let cropSize: string
@@ -411,6 +419,8 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(path)
+    if (!fileInfo?.streams) throw new BadRequestException()
+
     let animated = false
     if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     let cropSize: string
@@ -500,7 +510,8 @@ export class FilesService {
     path: string,
   ): Promise<UploadData[]> => {
     const fileInfo = await this.getFileData(path)
-    console.log(fileInfo)
+    if (!fileInfo?.streams) throw new BadRequestException()
+
     let animated = false
     if (fileInfo.streams[0].avg_frame_rate !== '0/0') animated = true
     let cropSize: string
@@ -594,6 +605,13 @@ export class FilesService {
           })
       }),
     ])
+  }
+  private getMimeFromPath = (filePath) => {
+    const execSync = CP.execSync
+    const mimeType = execSync(
+      'file --mime-type -b "' + filePath + '"',
+    ).toString()
+    return mimeType.trim()
   }
 }
 
