@@ -100,8 +100,15 @@ export class EmojisService {
       pack.icon = dto.icon
     }
     await pack.save()
+
+    await this.userModel.updateOne(
+      { id: userId },
+      { $push: { emoji_packs_ids: pack.id } },
+    )
+
     const extendedPack = pack.toObject()
-    extendedPack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
+    if (dto.icon)
+      extendedPack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
 
     return EmojiPackResponseValidate(extendedPack)
   }
@@ -132,7 +139,8 @@ export class EmojisService {
     dto: EditEmojiPackDto,
     userId: string,
   ): Promise<EmojiPackResponse> {
-    if (dto.name.replaceAll(' ', '') === '') throw new BadRequestException()
+    if (dto.name && dto.name.replaceAll(' ', '') === '')
+      throw new BadRequestException()
     const pack = await this.emojiPackModel.findOne({ id: packId })
     if (!pack) throw new NotFoundException()
     if (pack.owner_id !== userId) throw new ForbiddenException()

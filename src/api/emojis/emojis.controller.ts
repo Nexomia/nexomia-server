@@ -10,6 +10,7 @@ import {
   Put,
 } from '@nestjs/common'
 import { DUser } from 'decorators/user.decorator'
+import { EditEmojiDto } from './dto/edit-emoji.dto'
 import { EditEmojiPackDto } from './dto/edit-emojiPack.dto'
 import { AddEmojiDto } from './dto/add-emoji.dto'
 import { EmojisService } from './emojis.service'
@@ -123,7 +124,7 @@ export class EmojisController {
   @Patch(':packId/emoji/:emojiId')
   async editEmoji(
     @Param() params,
-    @Body() dto: AddEmojiDto,
+    @Body() dto: EditEmojiDto,
     @DUser() user: AccessToken,
   ) {
     return await this.emojisService.editEmoji(
