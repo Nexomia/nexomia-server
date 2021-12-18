@@ -18,7 +18,7 @@ export class User extends Connected {
   /**
    * The user's username, not unique across the platform
    */
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   username?: string
 
   /**
