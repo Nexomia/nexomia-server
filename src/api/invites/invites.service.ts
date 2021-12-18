@@ -165,6 +165,7 @@ export class InvitesService {
     )
 
     invite.uses++
+    invite.user_ids.push(userId)
     await invite.save()
 
     if (guild.default_channel !== '')
