@@ -84,13 +84,14 @@ export class UsersService {
       ])
       user.emoji_packs = <EmojiPackResponse[]>emojiPacks.map(
         (pack: EmojiPack) => {
-          pack.emojis.filter((emoji) => !emoji.deleted)
-          pack.emojis.map((emoji: Emoji) => {
-            emoji.url = `https://cdn.nx.wtf/${emoji.id}/${
-              pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
-            }.webp`
-            return EmojiResponseValidate(emoji)
-          })
+          pack.emojis = pack.emojis
+            .filter((emoji) => !emoji.deleted)
+            .map((emoji: Emoji) => {
+              emoji.url = `https://cdn.nx.wtf/${emoji.id}/${
+                pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
+              }.webp`
+              return EmojiResponseValidate(emoji)
+            })
           if (pack.icon)
             pack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
           else pack.icon = pack.emojis[0]?.url
