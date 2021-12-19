@@ -49,6 +49,7 @@ export class EmojisService {
   ): Promise<EmojiPackResponse> {
     const user = (await this.userModel.findOne({ id: userId })).toObject()
     const pack = (await this.emojiPackModel.findOne({ id: packId })).toObject()
+    if (pack.deleted) throw new NotFoundException()
     pack.available =
       !user.emoji_packs_ids.includes(packId) &&
       pack.owner_id !== userId &&
@@ -63,6 +64,7 @@ export class EmojisService {
         pack_id: pack.id,
         deleted: false,
       })
+      emojisRaw.filter((emoji) => !emoji.deleted)
       emojis = emojisRaw.map((em) => {
         em.url = `https://cdn.nx.wtf/${em.id}/${
           pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)

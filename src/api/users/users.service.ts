@@ -82,11 +82,10 @@ export class UsersService {
           },
         },
       ])
-      user.emoji_packs = <EmojiPackResponse[]>emojiPacks.filter(
+      user.emoji_packs = <EmojiPackResponse[]>emojiPacks.map(
         (pack: EmojiPack) => {
-          if (pack.deleted) return
-          pack.emojis.filter((emoji: Emoji) => {
-            if (emoji.deleted) return
+          pack.emojis.filter((emoji) => !emoji.deleted)
+          pack.emojis.map((emoji: Emoji) => {
             emoji.url = `https://cdn.nx.wtf/${emoji.id}/${
               pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
             }.webp`
@@ -375,9 +374,9 @@ export class UsersService {
     if (
       !user.emoji_packs_ids.includes(packId) &&
       pack.owner_id !== userId &&
-      (pack.access.disallowedUsers.includes(userId) ||
+      (pack.access.disallowedUsers?.includes(userId) ||
         (!pack.access.open_for_new_users &&
-          !pack.access.allowedUsers.includes(userId)))
+          !pack.access.allowedUsers?.includes(userId)))
     )
       throw new ForbiddenException()
     user.emoji_packs_ids.push(pack.id)
