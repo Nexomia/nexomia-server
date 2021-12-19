@@ -58,8 +58,7 @@ export class EmojisService {
           !pack.access.allowedUsers?.includes(userId)))
     pack.available = !pack.available // i'm fcking lazy
     let emojis: EmojiResponse[]
-    if (includeEmojis) {
-      if (!pack.available) throw new ForbiddenException()
+    if (includeEmojis && pack.available) {
       const emojisRaw = await this.emojiModel.find({
         pack_id: pack.id,
         deleted: false,
