@@ -64,7 +64,7 @@ export class ChannelsService {
   ) {}
 
   async getChannel(channelId: string): Promise<ChannelResponse> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     return ChannelResponseValidate(channel)
   }
@@ -115,7 +115,7 @@ export class ChannelsService {
     userId,
     one?,
   ): Promise<MessageResponse[] | MessageResponse> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -320,7 +320,7 @@ export class ChannelsService {
     )
       throw new BadRequestException()
 
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -510,7 +510,7 @@ export class ChannelsService {
       if (pack.type === EmojiPackType.STICKER) throw new BadRequestException()
       reaction = emoji.id
     }
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -592,7 +592,7 @@ export class ChannelsService {
     emojiId: string,
     userId: string,
   ): Promise<void> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -649,7 +649,7 @@ export class ChannelsService {
     messageDto: EditMessageDto,
     userId: string,
   ) {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -783,7 +783,7 @@ export class ChannelsService {
   }
 
   async deleteMessage(channelId, messageId, userId): Promise<void> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -859,7 +859,7 @@ export class ChannelsService {
     messageIds: string[],
     userId: string,
   ) {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -936,7 +936,7 @@ export class ChannelsService {
     inviteDto: CreateInviteDto,
     userId,
   ): Promise<Invite> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -977,7 +977,7 @@ export class ChannelsService {
 
   async typing(channelId, userId, type?) {
     if (type && (type < 0 || type > 4)) throw new BadRequestException()
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -1016,7 +1016,7 @@ export class ChannelsService {
   }
 
   async pinMessage(channelId, messageId, userId): Promise<void> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -1073,7 +1073,7 @@ export class ChannelsService {
   }
 
   async deletePinnedMessage(channelId, messageId, userId): Promise<void> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -1118,7 +1118,7 @@ export class ChannelsService {
   }
 
   async getPinnedMessages(channelId, userId) {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
