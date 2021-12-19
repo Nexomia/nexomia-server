@@ -49,33 +49,34 @@ export class EmojisService {
   ): Promise<EmojiPackResponse> {
     const user = (await this.userModel.findOne({ id: userId })).toObject()
     const pack = (await this.emojiPackModel.findOne({ id: packId })).toObject()
-    if (
+    pack.available =
       !user.emoji_packs_ids.includes(packId) &&
       pack.owner_id !== userId &&
-      (pack.access.disallowedUsers.includes(userId) ||
+      (pack.access.disallowedUsers?.includes(userId) ||
         (!pack.access.open_for_new_users &&
-          !pack.access.allowedUsers.includes(userId)))
-    )
-      throw new ForbiddenException()
-
+          !pack.access.allowedUsers?.includes(userId)))
+    pack.available = !pack.available // i'm fcking lazy
     let emojis: EmojiResponse[]
     if (includeEmojis) {
+      if (!pack.available) throw new ForbiddenException()
       const emojisRaw = await this.emojiModel.find({
         pack_id: pack.id,
         deleted: false,
       })
-      console.log(emojisRaw)
       emojis = emojisRaw.map((em) => {
         em.url = `https://cdn.nx.wtf/${em.id}/${
           pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
         }.webp`
         return EmojiResponseValidate(em)
       })
-      console.log(emojis)
       pack.emojis = emojis
     }
     if (pack.icon) pack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
-    else pack.icon = emojis[0].url
+    else if (pack.emojis?.length) pack.icon = pack.emojis[0].url
+    if (!pack.available) {
+      delete pack.owner_id
+      delete pack.description
+    }
     const packResponse = EmojiPackResponseValidate(pack)
     return packResponse
   }
