@@ -388,7 +388,7 @@ export class ChannelsService {
       })
       if (!user) throw new ForbiddenException()
       message.sticker_id = messageDto.sticker_id
-    } else if (message.content) {
+    } else if (messageDto.content) {
       message.content = messageDto.content?.trim()
       const emojisMatch = Array.from(
         message.content.matchAll(/(<e:)([0-9]{1,})(>)/g),
