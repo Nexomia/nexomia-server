@@ -15,6 +15,7 @@ import { UniqueID } from 'nodejs-snowflake'
 import { Cache } from 'cache-manager'
 import { Invite, InviteDocument } from '../invites/schemas/invite.schema'
 import { File, FileDocument } from '../files/schemas/file.schema'
+import { OverwritePermissionsDto } from './../channels/dto/overwrite-permissions.dto'
 import { Message, MessageDocument } from './../channels/schemas/message.schema'
 import { ParserUtils } from './../../utils/parser/parser.utils'
 import {
@@ -44,6 +45,7 @@ import {
   Channel,
   ChannelDocument,
   ChannelType,
+  PermissionsOverwrite,
 } from './../channels/schemas/channel.schema'
 import { Guild, GuildDocument, GuildMember } from './schemas/guild.schema'
 import { CreateGuildDto } from './dto/create-guild.dto'
@@ -534,6 +536,92 @@ export class GuildsService {
     this.eventEmitter.emit('guild.role_patched', data, guildId)
 
     return cleanedRole
+  }
+
+  async editPermissions(
+    channelId: string,
+    overwriteId: string,
+    dto: OverwritePermissionsDto,
+  ) {
+    const channel = await this.channelModel.findOne({
+      id: channelId,
+      deleted: false,
+    })
+    if (!channel) throw new NotFoundException()
+
+    let overwriteIndex = channel.permission_overwrites.findIndex(
+      (overwrite) => overwrite.id === overwriteId,
+    )
+    let overwriteData: PermissionsOverwrite
+    if (overwriteIndex !== -1)
+      overwriteData = channel.permission_overwrites[overwriteIndex]
+    else {
+      overwriteData = {
+        id: overwriteId,
+      }
+      const member = await this.isMember(channel.guild_id, overwriteId)
+      if (member) overwriteData.type = 0
+      else {
+        const role = await this.roleModel.exists({ id: overwriteId })
+        if (role) overwriteData.type = 1
+        else throw new BadRequestException()
+      }
+      channel.permission_overwrites.push(overwriteData)
+      overwriteIndex = channel.permission_overwrites.length - 1
+    }
+    if ((dto.allow || dto.allow === 0) && (dto.deny || dto.deny === 0)) {
+      overwriteData.allow = dto.allow &= ~(dto.deny | ComputedPermissions.OWNER)
+      overwriteData.deny = dto.deny
+    } else {
+      throw new BadRequestException()
+    }
+    channel.permission_overwrites[overwriteIndex] = overwriteData
+    channel.markModified('permission_overwrites')
+    await channel.save()
+    const data = {
+      event: 'guild.channel_permission_overwrite',
+      data: channel.permission_overwrites[overwriteIndex],
+    }
+    this.eventEmitter.emit(
+      'guild.channel_permission_overwrite',
+      data,
+      channel?.guild_id,
+    )
+
+    return channel.permission_overwrites[overwriteIndex]
+  }
+
+  async deletePermissions(channelId: string, overwriteId: string) {
+    const channel = await this.channelModel.findOne({
+      id: channelId,
+      deleted: false,
+    })
+    if (!channel) throw new NotFoundException()
+
+    const overwriteIndex = channel.permission_overwrites.findIndex(
+      (overwrite) => overwrite.id === overwriteId,
+    )
+    if (!(overwriteIndex + 1)) throw new NotFoundException()
+
+    channel.permission_overwrites.splice(overwriteIndex, 1)
+    channel.markModified('permission_overwrites')
+    await channel.save()
+
+    const data = {
+      event: 'guild.channel_permission_overwrite_deleted',
+      data: {
+        guild_id: channel.guild_id,
+        channel_id: channel.id,
+        permission_overwrite_id: overwriteId,
+      },
+    }
+    this.eventEmitter.emit(
+      'guild.channel_permission_overwrite_deleted',
+      data,
+      channel?.guild_id,
+    )
+
+    return
   }
 
   async getInvites(guildId) {

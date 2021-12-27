@@ -23,7 +23,11 @@ import { config } from './../../app.config'
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema'
 import { File, FileType, FileDocument } from './../files/schemas/file.schema'
 import { GuildsService } from './../guilds/guilds.service'
-import { ComputedPermissions } from './../guilds/schemas/role.schema'
+import {
+  ComputedPermissions,
+  Role,
+  RoleDocument,
+} from './../guilds/schemas/role.schema'
 import { Invite, InviteDocument } from './../invites/schemas/invite.schema'
 import { UserResponse } from './../users/responses/user.response'
 import { User, UserDocument } from './../users/schemas/user.schema'
@@ -42,7 +46,12 @@ import {
   MessageResponseValidate,
   MessageUserValidate,
 } from './responses/message.response'
-import { Channel, ChannelDocument, ChannelType } from './schemas/channel.schema'
+import {
+  Channel,
+  ChannelDocument,
+  ChannelType,
+  PermissionsOverwrite,
+} from './schemas/channel.schema'
 import { Message, MessageDocument, MessageType } from './schemas/message.schema'
 
 @Injectable()
@@ -51,6 +60,7 @@ export class ChannelsService {
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
+    @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @InjectModel(EmojiPack.name)
     private emojiPackModel: Model<EmojiPackDocument>,
     @InjectModel(Emoji.name) private emojiModel: Model<EmojiDocument>,
@@ -920,8 +930,6 @@ export class ChannelsService {
     this.eventEmitter.emit('message.bulk_deleted', data, channel?.guild_id)
     return
   }
-
-  // async editPermissions(channelId, overwriteId) {}
 
   async getInvites(channelId: string) {
     const invites = await this.inviteModel.find(

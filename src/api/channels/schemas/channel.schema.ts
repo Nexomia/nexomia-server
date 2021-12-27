@@ -83,14 +83,14 @@ export class ChannelShort {
 }
 
 export class PermissionsOverwrite {
-  id: string
+  id?: string
   /**
    * 0 - role
    * 1 - member
    */
-  type: 0 | 1
-  allow: number
-  deny: number
+  type?: 0 | 1
+  allow?: number
+  deny?: number
 }
 
 export type ChannelDocument = Channel & Document

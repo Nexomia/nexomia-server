@@ -11,6 +11,7 @@ import {
   Put,
 } from '@nestjs/common'
 import { DUser } from 'decorators/user.decorator'
+import { OverwritePermissionsDto } from 'api/channels/dto/overwrite-permissions.dto'
 import { GuildResponse } from './responses/guild.response'
 import { ChannelResponse } from './../channels/responses/channel.response'
 import { PatchGuildDto } from './dto/patch-guild.dto'
@@ -197,6 +198,51 @@ export class GuildsController {
         user.id,
       )
     else throw new ForbiddenException()
+  }
+
+  @Patch(':guildId/channels/:channelId/permissions/:overwriteId')
+  async editPermissions(
+    @Param() params,
+    @Body() overwritePermissionsDto: OverwritePermissionsDto,
+    @DUser() user: AccessToken,
+  ) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(
+      params.guildId,
+      user.id,
+      params.channelId,
+    )
+    if (
+      !(perms & (ComputedPermissions.OWNER | ComputedPermissions.ADMINISTRATOR))
+    )
+      throw new ForbiddenException()
+
+    return await this.guildsService.editPermissions(
+      params.channelId,
+      params.overwriteId,
+      overwritePermissionsDto,
+    )
+  }
+
+  @Delete(':guildId/channels/:channelId/permissions/:overwriteId')
+  async deletePermissions(@Param() params, @DUser() user: AccessToken) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(
+      params.guildId,
+      user.id,
+      params.channelId,
+    )
+    if (
+      !(perms & (ComputedPermissions.OWNER | ComputedPermissions.ADMINISTRATOR))
+    )
+      throw new ForbiddenException()
+
+    return await this.guildsService.deletePermissions(
+      params.channelId,
+      params.overwriteId,
+    )
   }
 
   @Put(':guildId/emojiPacks/:emojiPackId')

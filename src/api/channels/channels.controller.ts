@@ -15,14 +15,11 @@ import { MessageResponse } from './responses/message.response'
 import { Invite } from './../invites/schemas/invite.schema'
 import { AccessToken } from './../../interfaces/access-token.interface'
 import { GetChannelMessagesDto } from './dto/get-channel-messages.dto'
-// import { FollowChannelDto } from './dto/follow-channel.dto'
 import { CreateInviteDto } from './dto/create-invite.dto'
-// import { OverwritePermissionsDto } from './dto/overwrite-permissions.dto'
 import { BulkDeleteDto } from './dto/bulk-delete.dto'
 import { EditMessageDto } from './dto/edit-message.dto'
 import { CreateMessageDto } from './dto/create-message.dto'
 import { ChannelsService } from './channels.service'
-// import { AddDMRecipientDto } from './dto/add-dm-recipient.dto'
 
 @Controller('channels')
 export class ChannelsController {
@@ -181,17 +178,6 @@ export class ChannelsController {
       user.id,
     )
   }
-
-  /*@Put(':channelId/permissions/:overwriteId')
-  async editPermissions(
-    @Param() params,
-    @Body() overwritePermissionsDto: OverwritePermissionsDto,
-  ) {
-    return await this.channelsService.editPermissions(
-      params.channelId,
-      overwritePermissionsDto,
-    )
-  }*/
 
   @Get(':channelId/invites')
   async getInvites(@Param('channelId') channelId): Promise<Invite[]> {

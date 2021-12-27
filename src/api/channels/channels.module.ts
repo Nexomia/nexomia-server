@@ -1,5 +1,6 @@
 import { CacheModule, Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
+import { Role, RoleSchema } from './../guilds/schemas/role.schema'
 import {
   EmojiPack,
   EmojiPackSchema,
@@ -27,6 +28,7 @@ import { Channel, ChannelSchema } from './schemas/channel.schema'
       { name: Invite.name, schema: InviteSchema },
       { name: EmojiPack.name, schema: EmojiPackSchema },
       { name: Emoji.name, schema: EmojiSchema },
+      { name: Role.name, schema: RoleSchema },
     ]),
   ],
   exports: [ChannelsService, MongooseModule],
