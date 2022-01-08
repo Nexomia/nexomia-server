@@ -1,18 +1,16 @@
 import {
   BadRequestException,
-  CACHE_MANAGER,
   ForbiddenException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { InjectModel } from '@nestjs/mongoose'
-import { Cache } from 'cache-manager'
 import { Model } from 'mongoose'
 import { UniqueID } from 'nodejs-snowflake'
 import { ParserUtils } from 'utils/parser/parser.utils'
 import emojiRegex from 'emoji-regex'
+import { PatchChannelDto } from './dto/patch-channel.dto'
 import { EmojiResponseValidate } from './../emojis/responses/emoji.response'
 import {
   EmojiPack,
@@ -46,12 +44,7 @@ import {
   MessageResponseValidate,
   MessageUserValidate,
 } from './responses/message.response'
-import {
-  Channel,
-  ChannelDocument,
-  ChannelType,
-  PermissionsOverwrite,
-} from './schemas/channel.schema'
+import { Channel, ChannelDocument, ChannelType } from './schemas/channel.schema'
 import { Message, MessageDocument, MessageType } from './schemas/message.schema'
 
 @Injectable()
@@ -66,7 +59,6 @@ export class ChannelsService {
     @InjectModel(Emoji.name) private emojiModel: Model<EmojiDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(File.name) private fileModel: Model<FileDocument>,
-    @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private guildService: GuildsService,
     private parser: ParserUtils,
     private eventEmitter: EventEmitter2,
@@ -78,27 +70,47 @@ export class ChannelsService {
     if (!channel) throw new NotFoundException()
     return ChannelResponseValidate(channel)
   }
+
+  async editChannel(
+    channelId: string,
+    dto: PatchChannelDto,
+    userId: string,
+  ): Promise<ChannelResponse> {
+    const channel = await this.getExistsChannel(channelId)
+    if (!channel) throw new NotFoundException()
+
+    // 0 and 1 - DM channels
+    if (channel.type > 1) {
+      throw new ForbiddenException()
+    } else {
+      if (channel.owner_id !== userId) throw new ForbiddenException()
+    }
+    if (dto.name) channel.name = dto.name
+    if (dto.topic) channel.topic = dto.topic
+    if (channel.type === ChannelType.GUILD_VOICE) {
+      if (dto.bitrate && dto.bitrate > 16) channel.bitrate = dto.bitrate
+      if (dto.user_limit && dto.user_limit >= 0)
+        channel.user_limit = dto.user_limit
+    }
+    if (
+      channel.type < ChannelType.GUILD_VOICE &&
+      channel.type !== ChannelType.GUILD_CATEGORY
+    ) {
+      if (dto.rate_limit_per_user && dto.rate_limit_per_user > 0)
+        channel.rate_limit_per_user = dto.rate_limit_per_user
+      if (dto.nsfw === true || dto.nsfw === false) channel.nsfw = dto.nsfw
+    }
+
+    return ChannelResponseValidate(channel)
+  }
+
   async deleteChannel(channelId: string, userId: string): Promise<void> {
     const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
 
     // 0 and 1 - DM channels
     if (channel.type > 1) {
-      if (!this.guildsService.isMember(channel.guild_id, userId))
-        throw new ForbiddenException()
-      const perms = await this.parser.computePermissions(
-        channel.guild_id,
-        userId,
-      )
-      if (
-        !(
-          perms &
-          (ComputedPermissions.OWNER |
-            ComputedPermissions.ADMINISTRATOR |
-            ComputedPermissions.MANAGE_CHANNELS)
-        )
-      )
-        throw new ForbiddenException()
+      throw new ForbiddenException()
     } else {
       if (channel.owner_id !== userId) throw new ForbiddenException()
     }

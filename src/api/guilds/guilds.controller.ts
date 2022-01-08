@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common'
 import { DUser } from 'decorators/user.decorator'
 import { OverwritePermissionsDto } from 'api/channels/dto/overwrite-permissions.dto'
+import { PatchChannelDto } from './../channels/dto/patch-channel.dto'
 import { GuildResponse } from './responses/guild.response'
 import { ChannelResponse } from './../channels/responses/channel.response'
 import { PatchGuildDto } from './dto/patch-guild.dto'
@@ -71,6 +72,72 @@ export class GuildsController {
         ComputedPermissions.MANAGE_CHANNELS)
     )
       return this.guildsService.createChannel(guildId, createChannelDto)
+    else throw new ForbiddenException()
+  }
+
+  @Get(':guildId/channels/:channelId')
+  async getChannel(
+    @Param() params,
+    @DUser() user: AccessToken,
+  ): Promise<ChannelResponse> {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(
+      params.guildId,
+      user.id,
+      params.channelId,
+    )
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.READ_MESSAGES)
+    )
+      return await this.guildsService.getChannel(params.channelId)
+    else throw new ForbiddenException()
+  }
+
+  @Patch(':guildId/channels/:channelId')
+  async editChannel(
+    @Param() params,
+    @Body() patchChannelDto: PatchChannelDto,
+    @DUser() user: AccessToken,
+  ): Promise<ChannelResponse> {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_CHANNELS)
+    )
+      return await this.guildsService.editChannel(
+        params.channelId,
+        patchChannelDto,
+      )
+    else throw new ForbiddenException()
+  }
+
+  @Delete(':guildId/channels/:channelId')
+  async deleteChannel(
+    @Param() params,
+    @DUser() user: AccessToken,
+  ): Promise<void> {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(
+      params.guildId,
+      user.id,
+      params.channelId,
+    )
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_CHANNELS)
+    )
+      return await this.guildsService.deleteChannel(params.channelId)
     else throw new ForbiddenException()
   }
 

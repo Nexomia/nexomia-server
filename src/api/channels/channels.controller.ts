@@ -10,6 +10,7 @@ import {
   Query,
 } from '@nestjs/common'
 import { DUser } from 'decorators/user.decorator'
+import { PatchChannelDto } from './dto/patch-channel.dto'
 import { ChannelResponse } from './responses/channel.response'
 import { MessageResponse } from './responses/message.response'
 import { Invite } from './../invites/schemas/invite.schema'
@@ -30,10 +31,18 @@ export class ChannelsController {
     return await this.channelsService.getChannel(channelId)
   }
 
-  /*@Delete(':channelId')
-  async delete(@Param('channelId') channelId) {
-    return await this.channelsService.deleteChannel(channelId)
-  }*/
+  @Patch(':channelId')
+  async edit(
+    @Param('channelId') channelId,
+    @Body() patchChannelDto: PatchChannelDto,
+    @DUser() user: AccessToken,
+  ): Promise<ChannelResponse> {
+    return await this.channelsService.editChannel(
+      channelId,
+      patchChannelDto,
+      user.id,
+    )
+  }
 
   @Delete(':channelId')
   async deleteChannel(

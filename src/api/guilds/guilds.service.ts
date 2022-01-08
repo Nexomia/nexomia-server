@@ -15,6 +15,8 @@ import { UniqueID } from 'nodejs-snowflake'
 import { Cache } from 'cache-manager'
 import { Invite, InviteDocument } from '../invites/schemas/invite.schema'
 import { File, FileDocument } from '../files/schemas/file.schema'
+import { UpdatedChannelsPositionsValidate } from './responses/updated-positions.response'
+import { PatchChannelDto } from './../channels/dto/patch-channel.dto'
 import { OverwritePermissionsDto } from './../channels/dto/overwrite-permissions.dto'
 import { Message, MessageDocument } from './../channels/schemas/message.schema'
 import { ParserUtils } from './../../utils/parser/parser.utils'
@@ -266,8 +268,22 @@ export class GuildsService {
       if (channelDto.user_limit) channel.user_limit = channelDto.user_limit
     }
 
-    if (channelDto.position) channel.position = channelDto.position
-    if (channelDto.parent_id) channel.parent_id = channelDto.parent_id
+    if (!channelDto.parent_id) channelDto.parent_id = '0'
+    const parent = await this.channelModel.exists({
+      id: channelDto.parent_id,
+      type: ChannelType.GUILD_CATEGORY,
+      deleted: false,
+    })
+
+    if (!parent) channelDto.parent_id = '0'
+    const count = await this.channelModel.countDocuments({
+      guild_id: channel.guild_id,
+      parent_id: channelDto.parent_id,
+      deleted: false,
+    })
+
+    channel.position = count + 1
+    channel.parent_id = channelDto.parent_id
 
     await channel.save()
     const cleanedChannel = ChannelResponseValidate(channel.toObject())
@@ -279,6 +295,297 @@ export class GuildsService {
     this.eventEmitter.emit('guild.channel_created', data, guildId)
 
     return cleanedChannel
+  }
+
+  async getChannel(channelId: string): Promise<ChannelResponse> {
+    const channel = await this.channelModel.findOne({
+      id: channelId,
+      deleted: false,
+    })
+    if (!channel) throw new NotFoundException()
+    return ChannelResponseValidate(channel)
+  }
+
+  async editChannel(
+    channelId: string,
+    dto: PatchChannelDto,
+  ): Promise<ChannelResponse> {
+    const channel = await this.channelModel.findOne({
+      id: channelId,
+      deleted: false,
+    })
+    if (!channel) throw new NotFoundException()
+
+    if (dto.name) channel.name = dto.name
+    if (dto.topic) channel.topic = dto.topic
+    if (channel.type === ChannelType.GUILD_VOICE) {
+      if (dto.bitrate && dto.bitrate > 16) channel.bitrate = dto.bitrate
+      if (dto.user_limit && dto.user_limit >= 0)
+        channel.user_limit = dto.user_limit
+    }
+    if (
+      channel.type < ChannelType.GUILD_VOICE &&
+      channel.type !== ChannelType.GUILD_CATEGORY
+    ) {
+      if (dto.rate_limit_per_user && dto.rate_limit_per_user > 0)
+        channel.rate_limit_per_user = dto.rate_limit_per_user
+      if (dto.nsfw === true || dto.nsfw === false) channel.nsfw = dto.nsfw
+    }
+
+    let channels = []
+    if (
+      channel.type === ChannelType.GUILD_TEXT ||
+      channel.type === ChannelType.GUILD_VOICE ||
+      channel.type === ChannelType.GUILD_CATEGORY
+    ) {
+      if (dto.parent_id || dto.position) {
+        if (!dto.parent_id) dto.parent_id = '0'
+        const parent = await this.channelModel.exists({
+          id: dto.parent_id,
+          type: ChannelType.GUILD_CATEGORY,
+          deleted: false,
+        })
+
+        const count = await this.channelModel.countDocuments({
+          guild_id: channel.guild_id,
+          parent_id: dto.parent_id,
+          deleted: false,
+        })
+
+        if (
+          !(dto.parent_id === channel.parent_id && count === 1) &&
+          (parent || dto.parent_id === '0')
+        ) {
+          if (dto.position > count || dto.position <= 0)
+            dto.position = count + 1
+
+          if (dto.parent_id !== channel.parent_id) {
+            channels = await this.channelModel.find(
+              {
+                $or: [
+                  {
+                    guild_id: channel.guild_id,
+                    parent_id: channel.parent_id,
+                    position: { $gte: channel.position },
+                  },
+                  {
+                    guild_id: channel.guild_id,
+                    parent_id: dto.parent_id,
+                    position: { $gte: channel.position },
+                  },
+                ],
+              },
+              '-_id id',
+            )
+            console.log(channels)
+            await this.channelModel.updateMany(
+              {
+                guild_id: channel.guild_id,
+                parent_id: channel.parent_id,
+                position: { $gt: channel.position },
+              },
+              { $inc: { position: -1 } },
+            )
+
+            await this.channelModel.updateMany(
+              {
+                guild_id: channel.guild_id,
+                parent_id: dto.parent_id,
+                position: { $gte: channel.position },
+              },
+              { $inc: { position: 1 } },
+            )
+            channel.position = dto.position
+            channel.parent_id = dto.parent_id
+          } else {
+            if (dto.position > channel.position) {
+              channels = await this.channelModel.find(
+                {
+                  guild_id: channel.guild_id,
+                  parent_id: channel.parent_id,
+                  $and: [
+                    { position: { $lte: dto.position } },
+                    { position: { $gt: channel.position } },
+                  ],
+                },
+                'id',
+              )
+              await this.channelModel.updateMany(
+                {
+                  guild_id: channel.guild_id,
+                  parent_id: channel.parent_id,
+                  $and: [
+                    { position: { $lte: dto.position } },
+                    { position: { $gt: channel.position } },
+                  ],
+                },
+                { $inc: { position: -1 } },
+              )
+              channel.position = dto.position
+              channel.parent_id = dto.parent_id
+            } else {
+              channels = await this.channelModel.find(
+                {
+                  guild_id: channel.guild_id,
+                  parent_id: channel.parent_id,
+                  $and: [
+                    { position: { $gte: dto.position } },
+                    { position: { $lt: channel.position } },
+                  ],
+                },
+                'id',
+              )
+              await this.channelModel.updateMany(
+                {
+                  guild_id: channel.guild_id,
+                  parent_id: channel.parent_id,
+                  $and: [
+                    { position: { $gte: dto.position } },
+                    { position: { $lt: channel.position } },
+                  ],
+                },
+                { $inc: { position: 1 } },
+              )
+              channel.position = dto.position
+              channel.parent_id = dto.parent_id
+            }
+          }
+        }
+      }
+    }
+    await channel.save()
+
+    const cleanedChannel = ChannelResponseValidate(channel.toObject())
+
+    const data = {
+      event: 'guild.channel_edited',
+      data: cleanedChannel,
+    }
+    this.eventEmitter.emit('guild.channel_edited', data, channel.guild_id)
+
+    const updatedChannelsIds = []
+    channels.map((ch) => updatedChannelsIds.push(ch.id))
+    console.log(updatedChannelsIds)
+    const updatedChannels = await this.channelModel.find({
+      id: { $in: updatedChannelsIds },
+    })
+    const data2 = {
+      event: 'guild.channels_positions_updated',
+      data: {
+        channels: updatedChannels.map(UpdatedChannelsPositionsValidate),
+      },
+    }
+
+    this.eventEmitter.emit(
+      'guild.channels_positions_updated',
+      data2,
+      channel.guild_id,
+    )
+
+    return cleanedChannel
+  }
+
+  async deleteChannel(channelId: string): Promise<void> {
+    const channel = await this.channelModel.findOne({ id: channelId })
+    if (!channel) throw new NotFoundException()
+
+    let channels
+
+    channel.deleted = true
+    await channel.save()
+    if (channel.type !== 2) {
+      // ОБновляем позиции у каналов под ним
+      const channels = await this.channelModel.updateMany(
+        {
+          guild_id: channel.guild_id,
+          parent_id: channel.parent_id,
+          position: { $gt: channel.position },
+          deleted: false,
+        },
+        {
+          $inc: { position: -1 },
+        },
+      )
+
+      // Если у нас была категория, все немного сложнее
+    } else {
+      const count = await this.channelModel.countDocuments({
+        parent_id: channel.id,
+      })
+      channels = await this.channelModel.find(
+        {
+          $or: [
+            {
+              guild_id: channel.guild_id,
+              parent_id: channel.parent_id,
+              position: { $gt: channel.position },
+              deleted: false,
+            },
+            {
+              guild_id: channel.guild_id,
+              parent_id: channel.id,
+              deleted: false,
+            },
+          ],
+        },
+        '-_id id',
+      )
+
+      // Обновляем позиции у каналов, которые будут ниже тех, что будут подставлены из категории
+      await this.channelModel.updateMany(
+        {
+          guild_id: channel.guild_id,
+          parent_id: channel.parent_id,
+          position: { $gt: channel.position },
+          deleted: false,
+        },
+        {
+          $inc: { position: count - 1 },
+        },
+      )
+
+      // Подставляем каналы из удаленной категории
+      await this.channelModel.updateMany(
+        {
+          guild_id: channel.guild_id,
+          parent_id: channel.id,
+          deleted: false,
+        },
+        {
+          $inc: { position: channel.position - 1 },
+          parent_id: channel.parent_id,
+        },
+      )
+    }
+
+    // потом надо аудиты запилить
+    const data = {
+      event: 'guild.channel_deleted',
+      data: { id: channelId },
+    }
+
+    this.eventEmitter.emit('guild.channel_deleted', data, channel.guild_id)
+
+    const updatedChannelsIds = []
+    channels.map((ch) => updatedChannelsIds.push(ch.id))
+    console.log(updatedChannelsIds)
+    const updatedChannels = await this.channelModel.find({
+      id: { $in: updatedChannelsIds },
+    })
+
+    const data2 = {
+      event: 'guild.channels_positions_updated',
+      data: {
+        channels: updatedChannels.map(UpdatedChannelsPositionsValidate),
+      },
+    }
+
+    this.eventEmitter.emit(
+      'guild.channels_positions_updated',
+      data2,
+      channel.guild_id,
+    )
+    return
   }
 
   async getChannels(guildId): Promise<ChannelResponse[]> {
@@ -751,5 +1058,5 @@ export class ExtendedGuild extends Guild {
 export class ExtendedMember extends GuildMember {
   user: UserResponse
   roles: string[]
-  сonnected: boolean
+  connected: boolean
 }
