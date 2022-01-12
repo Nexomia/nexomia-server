@@ -343,6 +343,7 @@ export class ChannelsService {
       throw new BadRequestException()
 
     const channel = await this.getExistsChannel(channelId)
+    if (!channel && systemData) return
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||

@@ -173,6 +173,9 @@ export class Guild {
   @Prop()
   emoji_packs_ids?: string[]
 
+  @Prop()
+  bans?: GuildBan[]
+
   emoji_packs?: EmojiPackResponse[]
 }
 
@@ -192,6 +195,11 @@ export class GuildMember {
   deaf: boolean
   allow_dms: boolean
   permissions?: Permissions
+}
+
+export class GuildBan {
+  user_id?: string
+  reason?: string
 }
 
 export type GuildDocument = Guild & Document

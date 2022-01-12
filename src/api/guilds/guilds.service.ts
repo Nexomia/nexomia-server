@@ -15,6 +15,7 @@ import { UniqueID } from 'nodejs-snowflake'
 import { Cache } from 'cache-manager'
 import { Invite, InviteDocument } from '../invites/schemas/invite.schema'
 import { File, FileDocument } from '../files/schemas/file.schema'
+import { CreateBanDto } from './dto/create-ban.dto'
 import { UpdatedChannelsPositionsValidate } from './responses/updated-positions.response'
 import { PatchChannelDto } from './../channels/dto/patch-channel.dto'
 import { OverwritePermissionsDto } from './../channels/dto/overwrite-permissions.dto'
@@ -49,7 +50,12 @@ import {
   ChannelType,
   PermissionsOverwrite,
 } from './../channels/schemas/channel.schema'
-import { Guild, GuildDocument, GuildMember } from './schemas/guild.schema'
+import {
+  Guild,
+  GuildDocument,
+  GuildMember,
+  GuildBan,
+} from './schemas/guild.schema'
 import { CreateGuildDto } from './dto/create-guild.dto'
 
 @Injectable()
@@ -1029,8 +1035,151 @@ export class GuildsService {
     return roles.map(RoleResponseValidate)
   }
 
+  async removeMember(
+    guildId: string,
+    memberId: string,
+    userId: string,
+  ): Promise<void> {
+    if (!(await this.isMember(guildId, memberId))) throw new NotFoundException()
+
+    const perms = await this.parser.computePermissions(guildId, memberId)
+    if (perms & ComputedPermissions.OWNER) throw new ForbiddenException()
+
+    const positions = this.getPositions(userId, memberId)
+    if (positions[0] >= positions[1]) throw new ForbiddenException()
+
+    const membersStr: string = await this.onlineManager.get(guildId)
+    if (membersStr) {
+      let members: string[] = JSON.parse(membersStr)
+      const index = members.indexOf(memberId)
+      if (index >= 0) {
+        members = members.filter((m) => m !== memberId)
+        await this.onlineManager.set(guildId, JSON.stringify(members))
+      }
+    }
+
+    const guild = await this.guildModel.updateOne(
+      { id: guildId, owner_id: { $ne: memberId }, 'members.id': memberId },
+      { $pull: { members: { id: memberId } } },
+    )
+    if (!guild) throw new NotFoundException()
+
+    await this.roleModel.updateMany(
+      { guild_id: guildId, members: memberId },
+      { $pull: { members: memberId } },
+    )
+
+    const data = {
+      event: 'guild.user_left',
+      data: {
+        id: memberId,
+        guild: guildId,
+      },
+    }
+    this.eventEmitter.emit('guild.user_left', data, guildId)
+
+    return
+  }
+
+  async createBan(
+    guildId: string,
+    dto: CreateBanDto,
+    banId: string,
+    userId: string,
+  ): Promise<void> {
+    if (!(await this.isOwner(guildId, userId))) {
+      if (await this.isOwner(guildId, banId)) throw new ForbiddenException()
+
+      if (this.isMember(guildId, banId)) {
+        const positions = await this.getPositions(userId, banId)
+        const members: GuildMember[] = await this.getComparedMembers(
+          guildId,
+          userId,
+          banId,
+        )
+        // eslint-disable-next-line prettier/prettier
+        const perms = (members[0].permissions.allow &= ~members[1].permissions.allow)
+        if (
+          !(
+            perms &
+            (ComputedPermissions.OWNER |
+              ComputedPermissions.ADMINISTRATOR |
+              ComputedPermissions.MANAGE_MEMBERS)
+          )
+        )
+          throw new ForbiddenException()
+        if (positions[0] >= positions[1]) throw new ForbiddenException()
+      }
+    }
+
+    const ban: GuildBan = {
+      user_id: banId,
+      reason: dto.reason.trim() || '',
+    }
+
+    await this.guildModel.updateOne({ id: guildId }, { $push: { bans: ban } })
+
+    await this.guildModel.updateOne(
+      { id: guildId, 'members.id': banId },
+      { $pull: { members: { id: banId } } },
+    )
+
+    await this.roleModel.updateMany(
+      { guild_id: guildId, members: banId },
+      { $pull: { members: banId } },
+    )
+
+    const data = {
+      event: 'guild.user_left',
+      data: {
+        id: banId,
+        guild: guildId,
+      },
+    }
+    this.eventEmitter.emit('guild.user_left', data, guildId)
+
+    return
+  }
+
+  async getBans(
+    guildId: string,
+    one?: boolean,
+    userId?: string,
+  ): Promise<GuildBan[] | GuildBan> {
+    if (one) {
+      const ban: GuildBan = await this.guildModel.find(
+        {
+          id: guildId,
+          'bans.user_id': userId,
+        },
+        'bans.$',
+      )[0]
+      if (ban) return ban
+    } else {
+      const bans = await this.guildModel.find(
+        {
+          id: guildId,
+        },
+        'bans.$',
+      )
+      return <GuildBan[]>bans
+    }
+  }
+
+  async removeBan(guildId: string, userId: string): Promise<void> {
+    const guild = await this.guildModel.updateOne(
+      { id: guildId, 'bans.user_id': userId },
+      { $pull: { bans: { user_id: userId } } },
+    )
+    if (!guild) throw new NotFoundException()
+  }
+
   async isMember(guildId: string, userId: string) {
-    return await this.guildModel.exists({ id: guildId, 'members.id': userId })
+    return this.guildModel.exists({ id: guildId, 'members.id': userId })
+  }
+
+  async isOwner(guildId: string, userId: string) {
+    return this.guildModel.exists({ id: guildId, owner_id: userId })
   }
   async getPositions(first: string, second: string) {
     const roles = await this.roleModel.find({
@@ -1046,6 +1195,27 @@ export class GuildsService {
         positionSecond = role.position
     })
     return [positionFirst, positionSecond]
+  }
+
+  async getComparedMembers(guildId: string, first: string, second: string) {
+    const members = await this.guildModel.find(
+      {
+        $or: [
+          {
+            id: guildId,
+            'members.id': first,
+          },
+          {
+            id: guildId,
+            'members.id': second,
+          },
+        ],
+      },
+      'members.$',
+    )
+    return members[0][0].id === first
+      ? [members[0][0], members[1][0]]
+      : [members[1][0], members[0][0]]
   }
 }
 

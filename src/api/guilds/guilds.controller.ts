@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common'
 import { DUser } from 'decorators/user.decorator'
 import { OverwritePermissionsDto } from 'api/channels/dto/overwrite-permissions.dto'
+import { CreateBanDto } from './dto/create-ban.dto'
 import { PatchChannelDto } from './../channels/dto/patch-channel.dto'
 import { GuildResponse } from './responses/guild.response'
 import { ChannelResponse } from './../channels/responses/channel.response'
@@ -385,5 +386,97 @@ export class GuildsController {
     if (!this.guildsService.isMember(params.guildId, user.id))
       throw new ForbiddenException()
     return
+  }
+
+  @Delete(':guildId/members/:memberId')
+  async deleteMember(@Param() params, @DUser() user: AccessToken) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_MEMBERS)
+    )
+      return await this.guildsService.removeMember(
+        params.guildId,
+        params.memberId,
+        user.id,
+      )
+    else throw new ForbiddenException()
+  }
+
+  @Get(':guildId/bans')
+  async getBans(@Param() params, @DUser() user: AccessToken) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_MEMBERS)
+    )
+      return await this.guildsService.getBans(params.guildId)
+    else throw new ForbiddenException()
+  }
+
+  @Get(':guildId/bans/:userId')
+  async getBan(@Param() params, @DUser() user: AccessToken) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_MEMBERS)
+    )
+      return await this.guildsService.getBans(
+        params.guildId,
+        true,
+        params.userId,
+      )
+    else throw new ForbiddenException()
+  }
+
+  @Put(':guildId/bans/:userId')
+  async createBan(
+    @Param() params,
+    @Body() createBanDto: CreateBanDto,
+    @DUser() user: AccessToken,
+  ) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_MEMBERS)
+    )
+      return await this.guildsService.createBan(
+        params.guildId,
+        createBanDto,
+        params.userId,
+        user.id,
+      )
+    else throw new ForbiddenException()
+  }
+
+  @Delete(':guildId/bans/:userId')
+  async deleteBan(@Param() params, @DUser() user: AccessToken) {
+    if (!this.guildsService.isMember(params.guildId, user.id))
+      throw new ForbiddenException()
+    const perms = await this.parser.computePermissions(params.guildId, user.id)
+    if (
+      perms &
+      (ComputedPermissions.OWNER |
+        ComputedPermissions.ADMINISTRATOR |
+        ComputedPermissions.MANAGE_MEMBERS)
+    )
+      return await this.guildsService.removeBan(params.guildId, params.userId)
+    else throw new ForbiddenException()
   }
 }
