@@ -38,6 +38,8 @@ const MessageUserSchema = myzod.object({
   username: myzod.string(),
   discriminator: myzod.string(),
   avatar: myzod.string().optional(),
+  banner: myzod.string().optional(),
+  description: myzod.string().optional(),
 })
 
 export type MessageUser = Infer<typeof MessageUserSchema>
