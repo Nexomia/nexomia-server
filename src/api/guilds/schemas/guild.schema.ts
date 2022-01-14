@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
+import { MessageUser } from './../../channels/responses/message.response'
 import { EmojiPackResponse } from './../../emojis/responses/emojiPack.response'
 import { Permissions } from './role.schema'
 
@@ -200,6 +201,9 @@ export class GuildMember {
 export class GuildBan {
   user_id?: string
   reason?: string
+  banned_by?: string
+  date?: number
+  users?: MessageUser[]
 }
 
 export type GuildDocument = Guild & Document

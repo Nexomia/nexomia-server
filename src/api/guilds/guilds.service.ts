@@ -15,6 +15,7 @@ import { UniqueID } from 'nodejs-snowflake'
 import { Cache } from 'cache-manager'
 import { Invite, InviteDocument } from '../invites/schemas/invite.schema'
 import { File, FileDocument } from '../files/schemas/file.schema'
+import { MessageUserValidate } from './../channels/responses/message.response'
 import { CreateBanDto } from './dto/create-ban.dto'
 import { UpdatedChannelsPositionsValidate } from './responses/updated-positions.response'
 import { PatchChannelDto } from './../channels/dto/patch-channel.dto'
@@ -124,6 +125,11 @@ export class GuildsService {
             localField: 'emoji_pack_ids',
             foreignField: 'id',
             as: 'emoji_packs',
+          },
+        },
+        {
+          $project: {
+            bans: 0,
           },
         },
       ])
@@ -1115,6 +1121,8 @@ export class GuildsService {
     const ban: GuildBan = {
       user_id: banId,
       reason: dto.reason.trim() || '',
+      banned_by: userId,
+      date: Date.now(),
     }
 
     await this.guildModel.updateOne({ id: guildId }, { $push: { bans: ban } })
@@ -1154,15 +1162,34 @@ export class GuildsService {
         },
         'bans.$',
       )[0]
-      if (ban) return ban
+      if (ban) {
+        const users = await this.userModel.find({
+          id: [ban.banned_by, ban.user_id],
+        })
+        ban.users = users.map(MessageUserValidate)
+        return ban
+      }
     } else {
-      const bans = await this.guildModel.find(
-        {
-          id: guildId,
-        },
-        'bans.$',
-      )
-      return <GuildBan[]>bans
+      const bans = <GuildBan[]>(
+        await this.guildModel.findOne(
+          {
+            id: guildId,
+          },
+          'bans',
+        )
+      ).bans
+      const userIds = []
+      bans.forEach((b: GuildBan) => userIds.push(b.user_id, b.banned_by))
+      const users = <User[]>await this.userModel.find({ id: userIds })
+
+      return <unknown>bans.map((b: GuildBan) => {
+        b.users = []
+        b.users.push(
+          MessageUserValidate(users.find((u) => u.id === b.user_id)),
+          MessageUserValidate(users.find((u) => u.id === b.banned_by)),
+        )
+        return b
+      })
     }
   }
 
