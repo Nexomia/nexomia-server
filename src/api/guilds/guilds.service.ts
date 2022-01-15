@@ -1092,7 +1092,7 @@ export class GuildsService {
     dto: CreateBanDto,
     banId: string,
     userId: string,
-  ): Promise<void> {
+  ): Promise<GuildBan> {
     if (!(await this.isOwner(guildId, userId))) {
       if (await this.isOwner(guildId, banId)) throw new ForbiddenException()
 
@@ -1120,7 +1120,7 @@ export class GuildsService {
 
     const ban: GuildBan = {
       user_id: banId,
-      reason: dto.reason.trim() || '',
+      reason: dto.reason?.trim() || '',
       banned_by: userId,
       date: Date.now(),
     }
@@ -1137,6 +1137,11 @@ export class GuildsService {
       { $pull: { members: banId } },
     )
 
+    const users = await this.userModel.find({
+      id: [ban.banned_by, ban.user_id],
+    })
+    ban.users = users.map(MessageUserValidate)
+
     const data = {
       event: 'guild.user_left',
       data: {
@@ -1146,7 +1151,7 @@ export class GuildsService {
     }
     this.eventEmitter.emit('guild.user_left', data, guildId)
 
-    return
+    return ban
   }
 
   async getBans(
