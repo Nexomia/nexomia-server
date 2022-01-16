@@ -62,7 +62,7 @@ export class UsersService {
   ) {}
 
   async getUser(userId, me): Promise<UserResponse> {
-    const user: User = (await this.userModel.findOne({ id: userId })).toObject()
+    const user: User = await this.userModel.findOne({ id: userId })
     if (!user) throw new NotFoundException()
     user.connected = !!(
       (await this.onlineManager.get(user.id)) && user.presence !== 4
