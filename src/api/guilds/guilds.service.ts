@@ -1096,7 +1096,7 @@ export class GuildsService {
     if (!(await this.isOwner(guildId, userId))) {
       if (await this.isOwner(guildId, banId)) throw new ForbiddenException()
 
-      if (this.isMember(guildId, banId)) {
+      if (await this.isMember(guildId, banId)) {
         const positions = await this.getPositions(userId, banId)
         const members: GuildMember[] = await this.getComparedMembers(
           guildId,
@@ -1233,24 +1233,23 @@ export class GuildsService {
   }
 
   async getComparedMembers(guildId: string, first: string, second: string) {
-    const members = await this.guildModel.find(
-      {
-        $or: [
-          {
-            id: guildId,
-            'members.id': first,
-          },
-          {
-            id: guildId,
-            'members.id': second,
-          },
-        ],
-      },
-      'members.$',
+    const member = <GuildMember>(
+      (
+        await this.guildModel.findOne(
+          { id: guildId, 'members.id': first },
+          'members.$',
+        )
+      ).members[0]
     )
-    return members[0][0].id === first
-      ? [members[0][0], members[1][0]]
-      : [members[1][0], members[0][0]]
+    const member2 = <GuildMember>(
+      (
+        await this.guildModel.findOne(
+          { id: guildId, 'members.id': second },
+          'members.$',
+        )
+      ).members[0]
+    )
+    return [member, member2]
   }
 }
 
