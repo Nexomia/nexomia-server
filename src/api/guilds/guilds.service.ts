@@ -1117,6 +1117,7 @@ export class GuildsService {
         if (positions[0] >= positions[1]) throw new ForbiddenException()
       }
     }
+    if (userId === banId) throw new BadRequestException()
 
     const ban: GuildBan = {
       user_id: banId,
@@ -1187,14 +1188,16 @@ export class GuildsService {
       bans.forEach((b: GuildBan) => userIds.push(b.user_id, b.banned_by))
       const users = <User[]>await this.userModel.find({ id: userIds })
 
-      return <unknown>bans.map((b: GuildBan) => {
-        b.users = []
-        b.users.push(
-          MessageUserValidate(users.find((u) => u.id === b.user_id)),
-          MessageUserValidate(users.find((u) => u.id === b.banned_by)),
-        )
-        return b
-      })
+      return <unknown>bans
+        .map((b: GuildBan) => {
+          b.users = []
+          b.users.push(
+            MessageUserValidate(users.find((u) => u.id === b.user_id)),
+            MessageUserValidate(users.find((u) => u.id === b.banned_by)),
+          )
+          return b
+        })
+        .sort((a, b) => b.date - a.date)
     }
   }
 
