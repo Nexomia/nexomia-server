@@ -1,3 +1,4 @@
+import { FindUsersDto } from './dto/find-users.dto'
 import {
   Body,
   Controller,
@@ -7,6 +8,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
 } from '@nestjs/common'
 import { DUser } from '../../decorators/user.decorator'
 import { UserResponse } from './responses/user.response'
@@ -33,6 +35,11 @@ export class UsersController {
       me = true
     }
     return await this.usersService.getUser(id, me)
+  }
+
+  @Get()
+  async getMany(@Query() query: FindUsersDto): Promise<UserResponse[]> {
+    return await this.usersService.getMany(query.tags, query.ids)
   }
 
   @Patch('@me')

@@ -1,3 +1,5 @@
+import { MessageUserValidate } from './../channels/responses/message.response'
+import { Length } from 'class-validator'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Model } from 'mongoose'
 import {
@@ -105,6 +107,30 @@ export class UsersService {
       const { email, ...cleanedUser2 } = cleanedUser
       return cleanedUser2
     }
+  }
+
+  async getMany(tags?: string, ids?: string): Promise<UserResponse[]> {
+    let idsArray = []
+    const tagsArray = []
+    if (ids) idsArray = ids.split(',')
+    if (tags) {
+      console.log(tags)
+      tags
+        .split(',')
+        .map((t) => {
+          return t.split('#')
+        })
+        .filter((t) => t.length === 2)
+        .map((t) => tagsArray.push({ username: t[0], discriminator: t[1] }))
+    }
+    const users: User[] = await this.userModel.find({
+      $or: tagsArray.concat(idsArray ? { id: { $in: idsArray } } : null),
+    })
+    if (!users.length) throw new NotFoundException()
+    return users.map((u) => {
+      delete u.email
+      return MessageUserValidate(u)
+    })
   }
 
   async patchUser(userId, modifyData: ModifyUserDto): Promise<UserResponse> {
