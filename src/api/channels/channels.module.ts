@@ -1,5 +1,7 @@
+import { Guild } from 'api/guilds/schemas/guild.schema'
 import { CacheModule, Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
+import { GuildSchema } from './../guilds/schemas/guild.schema'
 import { Role, RoleSchema } from './../guilds/schemas/role.schema'
 import {
   EmojiPack,
@@ -23,6 +25,7 @@ import { Channel, ChannelSchema } from './schemas/channel.schema'
       ttl: 60 * 60 * 24 * 365,
     }),
     MongooseModule.forFeature([
+      { name: Guild.name, schema: GuildSchema },
       { name: Channel.name, schema: ChannelSchema },
       { name: Message.name, schema: MessageSchema },
       { name: Invite.name, schema: InviteSchema },

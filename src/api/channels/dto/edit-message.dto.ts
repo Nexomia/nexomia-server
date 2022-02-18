@@ -1,8 +1,8 @@
-import { IsArray, IsNumberString, IsOptional } from 'class-validator'
+import { IsArray, IsOptional, IsString } from 'class-validator'
 import { AllowedMentions, Attachment, Embed } from './../schemas/message.schema'
 export class EditMessageDto {
   @IsOptional()
-  @IsNumberString()
+  @IsString()
   content?: string
 
   @IsOptional()

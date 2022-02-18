@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
 
-@Schema({ versionKey: false })
+@Schema({ _id: false, versionKey: false })
 export class Invite {
   @Prop({ unique: true })
   code: string

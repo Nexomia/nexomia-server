@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
+import { NotifyState } from './../../channels/schemas/channel.schema'
 import { MessageUser } from './../../channels/responses/message.response'
 import { EmojiPackResponse } from './../../emojis/responses/emojiPack.response'
 import { Permissions } from './role.schema'
@@ -76,7 +77,7 @@ export class Guild {
    * default message notifications level
    */
   @Prop()
-  default_message_notifications?: number
+  default_message_notifications?: NotifyState
 
   /**
    * Guild's default channel
@@ -178,6 +179,8 @@ export class Guild {
   bans?: GuildBan[]
 
   emoji_packs?: EmojiPackResponse[]
+
+  unread?: boolean
 }
 
 export class GuildShort {

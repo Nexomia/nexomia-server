@@ -10,6 +10,7 @@ import { Model } from 'mongoose'
 import { UniqueID } from 'nodejs-snowflake'
 import { ParserUtils } from 'utils/parser/parser.utils'
 import emojiRegex from 'emoji-regex'
+import { Guild, GuildDocument } from 'api/guilds/schemas/guild.schema'
 import { PatchChannelDto } from './dto/patch-channel.dto'
 import { EmojiResponseValidate } from './../emojis/responses/emoji.response'
 import {
@@ -50,6 +51,7 @@ import { Message, MessageDocument, MessageType } from './schemas/message.schema'
 @Injectable()
 export class ChannelsService {
   constructor(
+    @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
@@ -65,9 +67,14 @@ export class ChannelsService {
     private guildsService: GuildsService,
   ) {}
 
-  async getChannel(channelId: string): Promise<ChannelResponse> {
+  async getChannel(
+    channelId: string,
+    userId: string,
+  ): Promise<ChannelResponse> {
     const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
+
+    channel.last_read_snowflake = channel.read_states[userId] || '0'
     return ChannelResponseValidate(channel)
   }
 
@@ -100,6 +107,19 @@ export class ChannelsService {
         channel.rate_limit_per_user = dto.rate_limit_per_user
       if (dto.nsfw === true || dto.nsfw === false) channel.nsfw = dto.nsfw
     }
+
+    channel.last_read_snowflake = channel.read_states[userId] || '0'
+    !channel.notify_states[userId]
+      ? channel.guild_id
+        ? (channel.message_notifications = (
+            await this.guildModel.findOne(
+              { id: channel.guild_id },
+              `notify_states.${userId}`,
+            )
+          ).default_message_notifications)
+        : (channel.message_notifications =
+            channel.default_message_notifications)
+      : (channel.message_notifications = channel.notify_states[userId])
 
     return ChannelResponseValidate(channel)
   }
@@ -279,9 +299,9 @@ export class ChannelsService {
           const att = files[attIndex]
           if (!att) return
 
-          att.url = `https://cdn.nx.wtf/${att.id}/${encodeURI(att.name)}`
+          att.url = `//cdn.nx.wtf/${att.id}/${encodeURI(att.name)}`
           if (att?.data?.width)
-            att.data.preview_url = `https://cdn.nx.wtf/${att.id}/${encodeURI(
+            att.data.preview_url = `//cdn.nx.wtf/${att.id}/${encodeURI(
               att.data.name,
             )}`
           message.attachments.push(MessageAttachmentValidate(att))
@@ -294,7 +314,7 @@ export class ChannelsService {
           )
           if (emojiIndex + 1) {
             const em = emojis[emojiIndex]
-            em.url = `https://cdn.nx.wtf/${em.id}/emoji.webp`
+            em.url = `//cdn.nx.wtf/${em.id}/emoji.webp`
             message.reactions[index].emoji = EmojiResponseValidate(em)
           }
         })
@@ -303,7 +323,7 @@ export class ChannelsService {
         message.emojis = []
         message.emoji_ids.forEach((em) => {
           const emoji = emojis.find((e) => e.id === em)
-          emoji.url = `https://cdn.nx.wtf/${emoji.id}/emoji.webp`
+          emoji.url = `//cdn.nx.wtf/${emoji.id}/emoji.webp`
           message.emojis.push(EmojiResponseValidate(emoji))
         })
       }
@@ -312,7 +332,7 @@ export class ChannelsService {
           (f) => f.id === message.sticker_id,
         )
         const em = emojis[indexSticker]
-        em.url = `https://cdn.nx.wtf/${em.id}/sticker.webp`
+        em.url = `//cdn.nx.wtf/${em.id}/sticker.webp`
 
         message.sticker = EmojiResponseValidate(emojis[indexSticker])
       }
@@ -320,12 +340,30 @@ export class ChannelsService {
     }
 
     if (!data.length && one) throw new NotFoundException()
-    if (one && filters?.ids.length === 1) return parseMessage(data[0])
+    if (!data.length) return []
+    if (one && filters?.ids.length === 1) {
+      if (
+        !channel.read_states[userId] ||
+        BigInt(channel.read_states[userId]) < BigInt(data[0].id)
+      ) {
+        channel.read_states[userId] = data[0].id
+        channel.markModified('read_states')
+        await channel.save()
+      }
+      return parseMessage(data[0])
+    }
 
     const ready = data
       .map(parseMessage)
       .sort((a, b) => (a.created > b.created ? 1 : -1))
-
+    if (
+      !channel.read_states[userId] ||
+      BigInt(channel.read_states[userId]) < BigInt(data[0].id)
+    ) {
+      channel.read_states[userId] = data[0].id
+      channel.markModified('read_states')
+      await channel.save()
+    }
     return ready
   }
 
@@ -493,6 +531,11 @@ export class ChannelsService {
       for (const att of attachments) message.attachment_ids.push(att.id)
     }
     await message.save()
+    channel.last_message_id = message.id
+    channel.read_states[userId] = message.id
+    channel.markModified('read_states')
+    await channel.save()
+
     const message2 = <MessageResponse>(
       await this.getChannelMessages(
         message.channel_id,
@@ -501,6 +544,7 @@ export class ChannelsService {
         true,
       )
     )
+
     const data = {
       event: 'message.created',
       data: message2,
@@ -1036,6 +1080,53 @@ export class ChannelsService {
     return
   }
 
+  async read(
+    channelId: string,
+    userId: string,
+    messageId?: string,
+  ): Promise<void> {
+    const channel = await this.getExistsChannel(channelId)
+    if (!channel) throw new BadRequestException()
+    if (
+      channel.type === ChannelType.DM ||
+      channel.type === ChannelType.GROUP_DM
+    ) {
+      if (!channel.recipients.includes(userId)) throw new ForbiddenException()
+    } else {
+      if (!(await this.guildService.isMember(channel.guild_id, userId)))
+        throw new ForbiddenException()
+      const perms = await this.parser.computePermissions(
+        channel.guild_id,
+        userId,
+        channelId,
+      )
+      if (
+        !(
+          perms &
+          (ComputedPermissions.OWNER |
+            ComputedPermissions.ADMINISTRATOR |
+            ComputedPermissions.READ_MESSAGES)
+        )
+      )
+        throw new ForbiddenException()
+    }
+    if (messageId) {
+      const msg = await this.messageModel.findOne({
+        id: messageId,
+        channel_id: channelId,
+      })
+      if (msg) channel.read_states[userId] = messageId
+      else throw new BadRequestException()
+    } else {
+      channel.read_states[userId] = new UniqueID(config.snowflake)
+        .getUniqueID()
+        .toString()
+    }
+    channel.markModified('read_states')
+    await channel.save()
+    return
+  }
+
   async pinMessage(channelId, messageId, userId): Promise<void> {
     const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
@@ -1089,7 +1180,12 @@ export class ChannelsService {
       },
     }
     this.eventEmitter.emit('message.pinned', data, channel?.guild_id)
-    this.createMessage(userId, channelId, {}, { type: MessageType.PIN })
+    this.createMessage(
+      userId,
+      channelId,
+      { forwarded_messages: [messageId] },
+      { type: MessageType.PIN },
+    )
     return
   }
 

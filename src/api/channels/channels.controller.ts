@@ -27,8 +27,11 @@ export class ChannelsController {
   constructor(private channelsService: ChannelsService) {}
 
   @Get(':channelId')
-  async get(@Param('channelId') channelId): Promise<ChannelResponse> {
-    return await this.channelsService.getChannel(channelId)
+  async get(
+    @Param('channelId') channelId: string,
+    @DUser() user: AccessToken,
+  ): Promise<ChannelResponse> {
+    return await this.channelsService.getChannel(channelId, user.id)
   }
 
   @Patch(':channelId')
@@ -221,6 +224,15 @@ export class ChannelsController {
     @DUser() user: AccessToken,
   ) {
     return await this.channelsService.typing(channelId, user.id, type)
+  }
+
+  @Post(':channelId/read')
+  async read(
+    @Param('channelId') channelId,
+    @Body('message_id') messageId: string,
+    @DUser() user: AccessToken,
+  ) {
+    return await this.channelsService.read(channelId, user.id, messageId)
   }
 
   @Put(':channelId/pins/:messageId')

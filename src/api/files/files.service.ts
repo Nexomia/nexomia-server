@@ -60,7 +60,7 @@ export class FilesService {
     file.file_server = FileServer.SELECTEL
     await file.save()
 
-    const upload_url = `http://${config.domain}/api/files/${file.id}`
+    const upload_url = `//${config.domain}/api/files/${file.id}`
     return { upload_url }
   }
 
@@ -111,7 +111,6 @@ export class FilesService {
     }
     await fs.unlink(multerFile.path)
     if (uplData[0].error) throw new BadRequestException(uplData[0].error)
-    console.log(uplData[0])
 
     file.name = uplData[0].name
     file.mime_type = uplData[0].mime
@@ -375,7 +374,7 @@ export class FilesService {
         fileInfo.streams[0].width / (16 / 9),
       )}`
     }
-    console.log(cropSize)
+
     return Promise.all([
       new Promise((resolve) => {
         ffmpeg(path)

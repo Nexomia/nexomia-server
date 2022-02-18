@@ -76,7 +76,6 @@ export class AuthService {
         this.emailService.sendEmailConfirmation(createdUser.email, token)
       })
       .catch((error) => {
-        console.log(error)
         if (error.keyPattern.email) throw new BadRequestException()
       })
   }

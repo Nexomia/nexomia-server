@@ -77,7 +77,7 @@ export class GuildsService {
     private parser: ParserUtils,
   ) {}
 
-  async getGuild(guildId, userId): Promise<Guild> {
+  async getGuild(guildId: string, userId: string): Promise<Guild> {
     // const guild = await this.guildModel.findOne({ id: guildId, 'members.id': userId }).select('-_id -members').lean()
     const guild = (
       await this.guildModel.aggregate([
@@ -134,9 +134,21 @@ export class GuildsService {
         },
       ])
     )[0]
+    guild.channels.map((channel: Channel) => {
+      channel.last_read_snowflake = channel?.read_states[userId] || '0'
+      !channel.notify_states || !channel.notify_states[userId]
+        ? channel.guild_id
+          ? (channel.message_notifications =
+              guild.default_message_notifications)
+          : (channel.message_notifications =
+              channel.default_message_notifications)
+        : (channel.message_notifications = channel.notify_states[userId])
+      return channel
+    })
+
     if (!guild) throw new NotFoundException()
 
-    return guild
+    return GuildResponseValidate(guild)
   }
 
   async create(
@@ -389,7 +401,7 @@ export class GuildsService {
               },
               '-_id id',
             )
-            console.log(channels)
+
             await this.channelModel.updateMany(
               {
                 guild_id: channel.guild_id,
@@ -477,7 +489,7 @@ export class GuildsService {
 
     const updatedChannelsIds = []
     channels.map((ch) => updatedChannelsIds.push(ch.id))
-    console.log(updatedChannelsIds)
+
     const updatedChannels = await this.channelModel.find({
       id: { $in: updatedChannelsIds },
     })
@@ -580,7 +592,7 @@ export class GuildsService {
 
     const updatedChannelsIds = []
     channels.map((ch) => updatedChannelsIds.push(ch.id))
-    console.log(updatedChannelsIds)
+
     const updatedChannels = await this.channelModel.find({
       id: { $in: updatedChannelsIds },
     })

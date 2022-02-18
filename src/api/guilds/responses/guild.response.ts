@@ -1,5 +1,6 @@
 import { Guild } from 'api/guilds/schemas/guild.schema'
 import myzod, { Infer } from 'myzod'
+import { ChannelResponseSchema } from './../../channels/responses/channel.response'
 import { User } from './../../users/schemas/user.schema'
 
 const GuildResponseSchema = myzod.object({
@@ -19,8 +20,9 @@ const GuildResponseSchema = myzod.object({
   vanity_url_code: myzod.string().optional(),
   preferred_locale: myzod.string().optional(),
   nsfw: myzod.boolean().optional(),
-  channels: myzod.unknown().optional(),
+  channels: myzod.array(ChannelResponseSchema.allowUnknownKeys()).optional(),
   roles: myzod.unknown().optional(),
+  unread: myzod.boolean().optional(),
 })
 
 export type GuildResponse = Infer<typeof GuildResponseSchema>

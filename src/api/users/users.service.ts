@@ -1,5 +1,3 @@
-import { MessageUserValidate } from './../channels/responses/message.response'
-import { Length } from 'class-validator'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Model } from 'mongoose'
 import {
@@ -17,6 +15,7 @@ import { Cache } from 'cache-manager'
 import { EmojiResponseValidate } from 'api/emojis/responses/emoji.response'
 import { Channel, ChannelDocument } from '../channels/schemas/channel.schema'
 import { Guild } from '../guilds/schemas/guild.schema'
+import { MessageUserValidate } from './../channels/responses/message.response'
 import {
   EmojiPackResponse,
   EmojiPackResponseValidate,
@@ -246,10 +245,30 @@ export class UsersService {
   }
 
   async getGuilds(userId, sortData): Promise<Guild[]> {
-    return await this.guildModel
+    const guilds = await this.guildModel
       .find({ 'members.id': userId })
       .select('-_id id name icon owner_id')
       .lean()
+    const guild_ids: string[] = []
+    guilds.map((g) => {
+      guild_ids.push(g.id)
+      g.unread = false
+      return g
+    })
+    const channels = await this.channelModel.find({
+      deleted: false,
+      guild_id: { $in: guild_ids },
+    })
+    const updated_guilds: string[] = []
+    channels.forEach((ch) => {
+      if (BigInt(ch.last_message_id) > BigInt(ch.read_states[userId] || 0)) {
+        if (!updated_guilds.includes(ch.guild_id)) {
+          guilds[guilds.findIndex((g) => g.id === ch.guild_id)].unread = true
+          updated_guilds.push(ch.guild_id)
+        }
+      }
+    })
+    return guilds
   }
 
   async leaveGuild(userId, guildId): Promise<void> {

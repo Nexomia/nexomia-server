@@ -1,6 +1,20 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
 import { Document } from 'mongoose'
 
+export class ReadStates {
+  [key: string]: string
+}
+
+export enum NotifyState {
+  ALL_MESSAGES = 1,
+  ONLY_MENTIONS = 2,
+  NOTHING = 3,
+}
+
+export class NotifyStates {
+  [key: string]: NotifyState
+}
+
 @Schema({ versionKey: false })
 export class Channel {
   @Prop({ unique: true })
@@ -17,6 +31,9 @@ export class Channel {
 
   @Prop()
   position?: number
+
+  @Prop({ default: '0' })
+  last_message_id?: string
 
   @Prop()
   permission_overwrites?: PermissionsOverwrite[]
@@ -62,6 +79,18 @@ export class Channel {
 
   @Prop({ default: false })
   deleted?: boolean
+
+  @Prop({ default: [] })
+  read_states: ReadStates
+
+  @Prop()
+  default_message_notifications?: NotifyState
+
+  @Prop({ default: [] })
+  notify_states: NotifyStates
+
+  last_read_snowflake: string
+  message_notifications: NotifyState
 }
 
 export enum ChannelType {
