@@ -22,7 +22,7 @@ export class User extends Connected {
   username?: string
 
   /**
-   * The user's 4-digit nexo-tag
+   * The user's 3-7-digit nexo-tag
    */
   @Prop({ required: true })
   discriminator?: string

@@ -113,7 +113,6 @@ export class UsersService {
     const tagsArray = []
     if (ids) idsArray = ids.split(',')
     if (tags) {
-      console.log(tags)
       tags
         .split(',')
         .map((t) => {
@@ -143,7 +142,8 @@ export class UsersService {
     let tagChanges = 0
 
     if (modifyData.username && modifyData.username !== user.username) {
-      if (modifyData.username.replaceAll(' ', '') === '' || !pass)
+      if (!pass) throw new ForbiddenException()
+      if (modifyData.username.replaceAll(' ', '') === '')
         throw new BadRequestException()
 
       user.username = modifyData.username
@@ -155,14 +155,17 @@ export class UsersService {
       modifyData.discriminator &&
       modifyData.description !== user.discriminator
     ) {
-      if (!pass) throw new BadRequestException()
-      user.discriminator = modifyData.discriminator
+      if (!pass) throw new ForbiddenException()
+      if (modifyData.discriminator.length !== 4 && !user.premium_type)
+        throw new BadRequestException()
+
+      user.discriminator = modifyData.discriminator.toLowerCase()
       changes++
       tagChanges++
     }
 
     if (modifyData.new_password) {
-      if (!pass) throw new BadRequestException()
+      if (!pass) throw new ForbiddenException()
       user.password = this.saltService.password(modifyData.new_password)
       user.tokens = []
       changes++
