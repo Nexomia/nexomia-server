@@ -299,9 +299,9 @@ export class ChannelsService {
           const att = files[attIndex]
           if (!att) return
 
-          att.url = `//cdn.nx.wtf/${att.id}/${encodeURI(att.name)}`
+          att.url = `https://cdn.nx.wtf/${att.id}/${encodeURI(att.name)}`
           if (att?.data?.width)
-            att.data.preview_url = `//cdn.nx.wtf/${att.id}/${encodeURI(
+            att.data.preview_url = `https://cdn.nx.wtf/${att.id}/${encodeURI(
               att.data.name,
             )}`
           message.attachments.push(MessageAttachmentValidate(att))
@@ -314,7 +314,7 @@ export class ChannelsService {
           )
           if (emojiIndex + 1) {
             const em = emojis[emojiIndex]
-            em.url = `//cdn.nx.wtf/${em.id}/emoji.webp`
+            em.url = `https://cdn.nx.wtf/${em.id}/emoji.webp`
             message.reactions[index].emoji = EmojiResponseValidate(em)
           }
         })
@@ -323,7 +323,7 @@ export class ChannelsService {
         message.emojis = []
         message.emoji_ids.forEach((em) => {
           const emoji = emojis.find((e) => e.id === em)
-          emoji.url = `//cdn.nx.wtf/${emoji.id}/emoji.webp`
+          emoji.url = `https://cdn.nx.wtf/${emoji.id}/emoji.webp`
           message.emojis.push(EmojiResponseValidate(emoji))
         })
       }
@@ -332,7 +332,7 @@ export class ChannelsService {
           (f) => f.id === message.sticker_id,
         )
         const em = emojis[indexSticker]
-        em.url = `//cdn.nx.wtf/${em.id}/sticker.webp`
+        em.url = `https://cdn.nx.wtf/${em.id}/sticker.webp`
 
         message.sticker = EmojiResponseValidate(emojis[indexSticker])
       }
