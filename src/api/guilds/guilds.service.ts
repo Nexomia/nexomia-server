@@ -272,6 +272,7 @@ export class GuildsService {
   async createChannel(
     guildId: string,
     channelDto: CreateChannelDto,
+    userId: string,
   ): Promise<ChannelResponse> {
     if (channelDto.name.replaceAll(' ', '') === '')
       throw new BadRequestException()
@@ -312,6 +313,10 @@ export class GuildsService {
     channel.position = count + 1
     channel.parent_id = channelDto.parent_id
 
+    channel.read_states = {}
+    channel.read_states[userId] = channel.id
+
+    channel.markModified('read_states')
     await channel.save()
     const cleanedChannel = ChannelResponseValidate(channel.toObject())
 
@@ -916,7 +921,7 @@ export class GuildsService {
       event: 'guild.channel_permission_overwrite',
       data: {
         channel_id: channel.id,
-        data: channel.permission_overwrites[overwriteIndex]
+        data: channel.permission_overwrites[overwriteIndex],
       },
     }
     this.eventEmitter.emit(

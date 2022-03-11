@@ -72,7 +72,11 @@ export class GuildsController {
         ComputedPermissions.ADMINISTRATOR |
         ComputedPermissions.MANAGE_CHANNELS)
     )
-      return this.guildsService.createChannel(guildId, createChannelDto)
+      return this.guildsService.createChannel(
+        guildId,
+        createChannelDto,
+        user.id,
+      )
     else throw new ForbiddenException()
   }
 
