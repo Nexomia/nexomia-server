@@ -199,6 +199,7 @@ export class GuildMember {
   deaf: boolean
   allow_dms: boolean
   permissions?: Permissions
+  roles: string[]
 }
 
 export class GuildBan {

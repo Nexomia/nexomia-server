@@ -7,7 +7,7 @@ class Connected {
   connected: boolean
 }
 
-@Schema({ _id: false, versionKey: false })
+@Schema({ versionKey: false })
 export class User extends Connected {
   /**
    * The user's id

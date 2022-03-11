@@ -305,11 +305,6 @@ export class UsersService {
     )
     if (!guild) throw new NotFoundException()
 
-    await this.roleModel.updateMany(
-      { guild_id: guildId, members: userId },
-      { $pull: { members: userId } },
-    )
-
     const data = {
       event: 'guild.user_left',
       data: {

@@ -163,18 +163,6 @@ export class GuildsService {
     guild.name = guildDto.name.replaceAll(/(\s){2,}/gm, ' ')
     guild.owner_id = userId
     // иконку немного позже
-    const member: GuildMember = {
-      id: userId,
-      joined_at: Date.now(),
-      mute: false,
-      deaf: false,
-      allow_dms: true,
-      permissions: {
-        allow: 0,
-        deny: 0,
-      },
-    }
-    guild.members.push(member)
 
     const role = new this.roleModel()
     role.id = new UniqueID(config.snowflake).getUniqueID()
@@ -189,6 +177,21 @@ export class GuildsService {
       deny: 0,
     }
     await role.save()
+
+    const member: GuildMember = {
+      id: userId,
+      joined_at: Date.now(),
+      mute: false,
+      deaf: false,
+      allow_dms: true,
+      permissions: {
+        allow: 0,
+        deny: 0,
+      },
+      roles: [role.id],
+    }
+
+    guild.members.push(member)
 
     await guild.save()
 
@@ -890,7 +893,7 @@ export class GuildsService {
       overwriteData = {
         id: overwriteId,
       }
-      const member = await this.isMember(channel.guild_id, overwriteId)
+      const member = await this.userModel.exists({ id: overwriteId })
       if (member) overwriteData.type = 0
       else {
         const role = await this.roleModel.exists({ id: overwriteId })
@@ -911,7 +914,10 @@ export class GuildsService {
     await channel.save()
     const data = {
       event: 'guild.channel_permission_overwrite',
-      data: channel.permission_overwrites[overwriteIndex],
+      data: {
+        channel_id: channel.id,
+        data: channel.permission_overwrites[overwriteIndex]
+      },
     }
     this.eventEmitter.emit(
       'guild.channel_permission_overwrite',

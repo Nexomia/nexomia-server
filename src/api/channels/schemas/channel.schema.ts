@@ -80,13 +80,13 @@ export class Channel {
   @Prop({ default: false })
   deleted?: boolean
 
-  @Prop({ default: [] })
+  @Prop({ default: {} })
   read_states: ReadStates
 
   @Prop()
   default_message_notifications?: NotifyState
 
-  @Prop({ default: [] })
+  @Prop({ default: {} })
   notify_states: NotifyStates
 
   last_read_snowflake: string

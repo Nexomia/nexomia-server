@@ -156,15 +156,12 @@ export class InvitesService {
         allow: 0,
         deny: 0,
       },
+      roles: [guild.roles.filter((role) => role.default)[0].id],
     }
 
     await this.guildModel.updateOne(
       { id: guild.id },
       { $push: { members: member } },
-    )
-    await this.roleModel.updateOne(
-      { guild_id: guild.id, default: true },
-      { $push: { members: userId } },
     )
 
     invite.uses++

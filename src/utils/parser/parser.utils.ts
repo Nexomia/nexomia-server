@@ -56,7 +56,7 @@ export class ParserUtils {
 
     let permissions: number
     const roles = await this.roleModel.aggregate([
-      { $match: { guild_id: guildId, members: userId } },
+      { $match: { guild_id: guildId, id: { $in: guildMember.roles } } },
       { $project: { id: 1, position: 1, permissions: 1 } },
       { $sort: { position: -1 } },
     ])
