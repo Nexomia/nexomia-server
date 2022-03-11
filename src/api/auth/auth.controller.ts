@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Post,
+  Query,
+} from '@nestjs/common'
 import { DFingerprint } from '../../decorators/fingerprint.decorator'
 import { Fingerprint } from './../../interfaces/fingerprint.interface'
 import { AuthService } from './auth.service'
@@ -10,6 +18,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('/login')
+  @HttpCode(200)
   async login(
     @Body() loginAuthDto: LoginUserDto,
     @DFingerprint() fp: Fingerprint,

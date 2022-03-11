@@ -24,6 +24,9 @@ export class Invite {
   @Prop({ default: 0 })
   uses?: number
 
+  @Prop({ default: [] })
+  user_ids?: string[]
+
   @Prop({ default: false })
   temporary?: boolean
 }

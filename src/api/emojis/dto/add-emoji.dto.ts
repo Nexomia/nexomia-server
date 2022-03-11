@@ -2,7 +2,7 @@ import { IsArray, IsString, Length, IsOptional } from 'class-validator'
 
 export class AddEmojiDto {
   @IsString()
-  @Length(1, 15)
+  @Length(1, 35)
   name: string
 
   @IsString()

@@ -15,6 +15,7 @@ import { Cache } from 'cache-manager'
 import { EmojiResponseValidate } from 'api/emojis/responses/emoji.response'
 import { Channel, ChannelDocument } from '../channels/schemas/channel.schema'
 import { Guild } from '../guilds/schemas/guild.schema'
+import { MessageUserValidate } from './../channels/responses/message.response'
 import {
   EmojiPackResponse,
   EmojiPackResponseValidate,
@@ -62,7 +63,7 @@ export class UsersService {
   ) {}
 
   async getUser(userId, me): Promise<UserResponse> {
-    const user: User = (await this.userModel.findOne({ id: userId })).toObject()
+    const user: User = await this.userModel.findOne({ id: userId })
     if (!user) throw new NotFoundException()
     user.connected = !!(
       (await this.onlineManager.get(user.id)) && user.presence !== 4
@@ -84,15 +85,17 @@ export class UsersService {
       ])
       user.emoji_packs = <EmojiPackResponse[]>emojiPacks.map(
         (pack: EmojiPack) => {
-          pack.emojis.map((emoji: Emoji) => {
-            emoji.url = `https://cdn.nx.wtf/${emoji.id}/${
-              pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
-            }.webp`
-            return EmojiResponseValidate(emoji)
-          })
+          pack.emojis = pack.emojis
+            .filter((emoji) => !emoji.deleted)
+            .map((emoji: Emoji) => {
+              emoji.url = `https://cdn.nx.wtf/${emoji.id}/${
+                pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
+              }.webp`
+              return EmojiResponseValidate(emoji)
+            })
           if (pack.icon)
             pack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
-          else pack.icon = pack.emojis[0].url
+          else pack.icon = pack.emojis[0]?.url
           return EmojiPackResponseValidate(pack)
         },
       )
@@ -103,6 +106,29 @@ export class UsersService {
       const { email, ...cleanedUser2 } = cleanedUser
       return cleanedUser2
     }
+  }
+
+  async getMany(tags?: string, ids?: string): Promise<UserResponse[]> {
+    let idsArray = []
+    const tagsArray = []
+    if (ids) idsArray = ids.split(',')
+    if (tags) {
+      tags
+        .split(',')
+        .map((t) => {
+          return t.split('#')
+        })
+        .filter((t) => t.length === 2)
+        .map((t) => tagsArray.push({ username: t[0], discriminator: t[1] }))
+    }
+    const users: User[] = await this.userModel.find({
+      $or: tagsArray.concat(idsArray ? { id: { $in: idsArray } } : null),
+    })
+    if (!users.length) throw new NotFoundException()
+    return users.map((u) => {
+      delete u.email
+      return MessageUserValidate(u)
+    })
   }
 
   async patchUser(userId, modifyData: ModifyUserDto): Promise<UserResponse> {
@@ -116,7 +142,8 @@ export class UsersService {
     let tagChanges = 0
 
     if (modifyData.username && modifyData.username !== user.username) {
-      if (modifyData.username.replaceAll(' ', '') === '' || !pass)
+      if (!pass) throw new ForbiddenException()
+      if (modifyData.username.replaceAll(' ', '') === '')
         throw new BadRequestException()
 
       user.username = modifyData.username
@@ -128,14 +155,17 @@ export class UsersService {
       modifyData.discriminator &&
       modifyData.description !== user.discriminator
     ) {
-      if (!pass) throw new BadRequestException()
-      user.discriminator = modifyData.discriminator
+      if (!pass) throw new ForbiddenException()
+      if (modifyData.discriminator.length !== 4 && !user.premium_type)
+        throw new BadRequestException()
+
+      user.discriminator = modifyData.discriminator.toLowerCase()
       changes++
       tagChanges++
     }
 
     if (modifyData.new_password) {
-      if (!pass) throw new BadRequestException()
+      if (!pass) throw new ForbiddenException()
       user.password = this.saltService.password(modifyData.new_password)
       user.tokens = []
       changes++
@@ -218,10 +248,30 @@ export class UsersService {
   }
 
   async getGuilds(userId, sortData): Promise<Guild[]> {
-    return await this.guildModel
+    const guilds = await this.guildModel
       .find({ 'members.id': userId })
       .select('-_id id name icon owner_id')
       .lean()
+    const guild_ids: string[] = []
+    guilds.map((g) => {
+      guild_ids.push(g.id)
+      g.unread = false
+      return g
+    })
+    const channels = await this.channelModel.find({
+      deleted: false,
+      guild_id: { $in: guild_ids },
+    })
+    const updated_guilds: string[] = []
+    channels.forEach((ch) => {
+      if (BigInt(ch.last_message_id) > BigInt(ch.read_states[userId] || 0)) {
+        if (!updated_guilds.includes(ch.guild_id)) {
+          guilds[guilds.findIndex((g) => g.id === ch.guild_id)].unread = true
+          updated_guilds.push(ch.guild_id)
+        }
+      }
+    })
+    return guilds
   }
 
   async leaveGuild(userId, guildId): Promise<void> {
@@ -254,11 +304,6 @@ export class UsersService {
       { $pull: { members: { id: userId } } },
     )
     if (!guild) throw new NotFoundException()
-
-    await this.roleModel.updateMany(
-      { guild_id: guildId, members: userId },
-      { $pull: { members: userId } },
-    )
 
     const data = {
       event: 'guild.user_left',
@@ -373,9 +418,9 @@ export class UsersService {
     if (
       !user.emoji_packs_ids.includes(packId) &&
       pack.owner_id !== userId &&
-      (pack.access.disallowedUsers.includes(userId) ||
+      (pack.access.disallowedUsers?.includes(userId) ||
         (!pack.access.open_for_new_users &&
-          !pack.access.allowedUsers.includes(userId)))
+          !pack.access.allowedUsers?.includes(userId)))
     )
       throw new ForbiddenException()
     user.emoji_packs_ids.push(pack.id)

@@ -50,11 +50,16 @@ export class EmojiPack {
   @Prop()
   owner_id: string
 
+  @Prop()
+  deleted?: boolean
+
   owner?: EmojiPackOwnerResponse
 
   stats?: EmojiPackStats
 
   emojis?: EmojiResponse[]
+
+  available?: boolean
 }
 
 export const EmojiPackSchema = SchemaFactory.createForClass(EmojiPack)

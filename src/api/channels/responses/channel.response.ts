@@ -1,7 +1,7 @@
 import myzod, { Infer } from 'myzod'
 import { Channel } from './../schemas/channel.schema'
 
-const ChannelResponseSchema = myzod.object({
+export const ChannelResponseSchema = myzod.object({
   id: myzod.string(),
   guild_id: myzod.string().optional(),
   type: myzod.number(),
@@ -12,6 +12,9 @@ const ChannelResponseSchema = myzod.object({
   name: myzod.string().optional(),
   topic: myzod.string().optional(),
   icon: myzod.string().optional(),
+  last_message_id: myzod.string().optional(),
+  last_read_snowflake: myzod.string().optional(),
+  message_notifications: myzod.number().optional(),
   permission_overwrites: myzod.array(myzod.unknown()).optional(),
   nsfw: myzod.boolean().optional(),
   bitrate: myzod.number().optional(),

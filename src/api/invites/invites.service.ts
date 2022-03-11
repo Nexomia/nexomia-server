@@ -4,6 +4,7 @@ import {
   NotFoundException,
   Inject,
   CACHE_MANAGER,
+  ForbiddenException,
 } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
@@ -142,6 +143,8 @@ export class InvitesService {
     )[0]
 
     if (!guild) throw new NotFoundException()
+    if (guild.bans.find((b) => b.user_id === userId))
+      throw new ForbiddenException()
 
     const member: GuildMember = {
       id: userId,
@@ -153,27 +156,27 @@ export class InvitesService {
         allow: 0,
         deny: 0,
       },
+      roles: [guild.roles.filter((role) => role.default)[0].id],
     }
 
     await this.guildModel.updateOne(
       { id: guild.id },
       { $push: { members: member } },
     )
-    await this.roleModel.updateOne(
-      { guild_id: guild.id, default: true },
-      { $push: { members: userId } },
-    )
 
     invite.uses++
+    invite.user_ids.push(userId)
     await invite.save()
 
     if (guild.default_channel !== '')
-      this.channelService.createMessage(
-        userId,
-        guild.default_channel,
-        {},
-        { type: MessageType.JOIN },
-      )
+      try {
+        this.channelService.createMessage(
+          userId,
+          guild.default_channel,
+          {},
+          { type: MessageType.JOIN },
+        )
+      } catch {}
 
     const data = {
       event: 'guild.user_joined',

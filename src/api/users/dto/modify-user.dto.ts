@@ -6,6 +6,7 @@ import {
   Length,
   Max,
   Min,
+  MinLength,
 } from 'class-validator'
 export class ModifyUserDto {
   @IsOptional()
@@ -19,17 +20,17 @@ export class ModifyUserDto {
 
   @IsOptional()
   @IsString()
-  @Length(6, 30)
+  @MinLength(6)
   password?: string
 
   @IsOptional()
   @IsString()
-  @Length(6, 30)
+  @MinLength(6)
   new_password?: string
 
   @IsOptional()
   @IsString()
-  @Length(4, 4)
+  @Length(3, 7)
   discriminator?: string
 
   @IsOptional()

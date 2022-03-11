@@ -49,33 +49,35 @@ export class EmojisService {
   ): Promise<EmojiPackResponse> {
     const user = (await this.userModel.findOne({ id: userId })).toObject()
     const pack = (await this.emojiPackModel.findOne({ id: packId })).toObject()
-    if (
+    if (pack.deleted) throw new NotFoundException()
+    pack.available =
       !user.emoji_packs_ids.includes(packId) &&
       pack.owner_id !== userId &&
-      (pack.access.disallowedUsers.includes(userId) ||
+      (pack.access.disallowedUsers?.includes(userId) ||
         (!pack.access.open_for_new_users &&
-          !pack.access.allowedUsers.includes(userId)))
-    )
-      throw new ForbiddenException()
-
+          !pack.access.allowedUsers?.includes(userId)))
+    pack.available = !pack.available // i'm fcking lazy
     let emojis: EmojiResponse[]
-    if (includeEmojis) {
+    if (includeEmojis && pack.available) {
       const emojisRaw = await this.emojiModel.find({
         pack_id: pack.id,
         deleted: false,
       })
-      console.log(emojisRaw)
+      emojisRaw.filter((emoji) => !emoji.deleted)
       emojis = emojisRaw.map((em) => {
         em.url = `https://cdn.nx.wtf/${em.id}/${
           pack.type ? 'sticker' : 'emoji' // 1 - sticker, 0 - emoji (true/else)
         }.webp`
         return EmojiResponseValidate(em)
       })
-      console.log(emojis)
       pack.emojis = emojis
     }
     if (pack.icon) pack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
-    else pack.icon = emojis[0].url
+    else if (pack.emojis?.length) pack.icon = pack.emojis[0].url
+    if (!pack.available) {
+      delete pack.owner_id
+      delete pack.description
+    }
     const packResponse = EmojiPackResponseValidate(pack)
     return packResponse
   }
@@ -100,8 +102,15 @@ export class EmojisService {
       pack.icon = dto.icon
     }
     await pack.save()
+
+    await this.userModel.updateOne(
+      { id: userId },
+      { $push: { emoji_packs_ids: pack.id } },
+    )
+
     const extendedPack = pack.toObject()
-    extendedPack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
+    if (dto.icon)
+      extendedPack.icon = `https://cdn.nx.wtf/${pack.icon}/avatar.webp`
 
     return EmojiPackResponseValidate(extendedPack)
   }
@@ -132,7 +141,8 @@ export class EmojisService {
     dto: EditEmojiPackDto,
     userId: string,
   ): Promise<EmojiPackResponse> {
-    if (dto.name.replaceAll(' ', '') === '') throw new BadRequestException()
+    if (dto.name && dto.name.replaceAll(' ', '') === '')
+      throw new BadRequestException()
     const pack = await this.emojiPackModel.findOne({ id: packId })
     if (!pack) throw new NotFoundException()
     if (pack.owner_id !== userId) throw new ForbiddenException()

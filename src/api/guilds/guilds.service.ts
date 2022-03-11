@@ -15,6 +15,11 @@ import { UniqueID } from 'nodejs-snowflake'
 import { Cache } from 'cache-manager'
 import { Invite, InviteDocument } from '../invites/schemas/invite.schema'
 import { File, FileDocument } from '../files/schemas/file.schema'
+import { MessageUserValidate } from './../channels/responses/message.response'
+import { CreateBanDto } from './dto/create-ban.dto'
+import { UpdatedChannelsPositionsValidate } from './responses/updated-positions.response'
+import { PatchChannelDto } from './../channels/dto/patch-channel.dto'
+import { OverwritePermissionsDto } from './../channels/dto/overwrite-permissions.dto'
 import { Message, MessageDocument } from './../channels/schemas/message.schema'
 import { ParserUtils } from './../../utils/parser/parser.utils'
 import {
@@ -44,8 +49,14 @@ import {
   Channel,
   ChannelDocument,
   ChannelType,
+  PermissionsOverwrite,
 } from './../channels/schemas/channel.schema'
-import { Guild, GuildDocument, GuildMember } from './schemas/guild.schema'
+import {
+  Guild,
+  GuildDocument,
+  GuildMember,
+  GuildBan,
+} from './schemas/guild.schema'
 import { CreateGuildDto } from './dto/create-guild.dto'
 
 @Injectable()
@@ -66,7 +77,7 @@ export class GuildsService {
     private parser: ParserUtils,
   ) {}
 
-  async getGuild(guildId, userId): Promise<Guild> {
+  async getGuild(guildId: string, userId: string): Promise<Guild> {
     // const guild = await this.guildModel.findOne({ id: guildId, 'members.id': userId }).select('-_id -members').lean()
     const guild = (
       await this.guildModel.aggregate([
@@ -116,11 +127,28 @@ export class GuildsService {
             as: 'emoji_packs',
           },
         },
+        {
+          $project: {
+            bans: 0,
+          },
+        },
       ])
     )[0]
+    guild.channels.map((channel: Channel) => {
+      channel.last_read_snowflake = channel?.read_states[userId] || '0'
+      !channel.notify_states || !channel.notify_states[userId]
+        ? channel.guild_id
+          ? (channel.message_notifications =
+              guild.default_message_notifications)
+          : (channel.message_notifications =
+              channel.default_message_notifications)
+        : (channel.message_notifications = channel.notify_states[userId])
+      return channel
+    })
+
     if (!guild) throw new NotFoundException()
 
-    return guild
+    return GuildResponseValidate(guild)
   }
 
   async create(
@@ -135,18 +163,6 @@ export class GuildsService {
     guild.name = guildDto.name.replaceAll(/(\s){2,}/gm, ' ')
     guild.owner_id = userId
     // иконку немного позже
-    const member: GuildMember = {
-      id: userId,
-      joined_at: Date.now(),
-      mute: false,
-      deaf: false,
-      allow_dms: true,
-      permissions: {
-        allow: 0,
-        deny: 0,
-      },
-    }
-    guild.members.push(member)
 
     const role = new this.roleModel()
     role.id = new UniqueID(config.snowflake).getUniqueID()
@@ -161,6 +177,21 @@ export class GuildsService {
       deny: 0,
     }
     await role.save()
+
+    const member: GuildMember = {
+      id: userId,
+      joined_at: Date.now(),
+      mute: false,
+      deaf: false,
+      allow_dms: true,
+      permissions: {
+        allow: 0,
+        deny: 0,
+      },
+      roles: [role.id],
+    }
+
+    guild.members.push(member)
 
     await guild.save()
 
@@ -241,6 +272,7 @@ export class GuildsService {
   async createChannel(
     guildId: string,
     channelDto: CreateChannelDto,
+    userId: string,
   ): Promise<ChannelResponse> {
     if (channelDto.name.replaceAll(' ', '') === '')
       throw new BadRequestException()
@@ -264,9 +296,27 @@ export class GuildsService {
       if (channelDto.user_limit) channel.user_limit = channelDto.user_limit
     }
 
-    if (channelDto.position) channel.position = channelDto.position
-    if (channelDto.parent_id) channel.parent_id = channelDto.parent_id
+    if (!channelDto.parent_id) channelDto.parent_id = '0'
+    const parent = await this.channelModel.exists({
+      id: channelDto.parent_id,
+      type: ChannelType.GUILD_CATEGORY,
+      deleted: false,
+    })
 
+    if (!parent) channelDto.parent_id = '0'
+    const count = await this.channelModel.countDocuments({
+      guild_id: channel.guild_id,
+      parent_id: channelDto.parent_id,
+      deleted: false,
+    })
+
+    channel.position = count + 1
+    channel.parent_id = channelDto.parent_id
+
+    channel.read_states = {}
+    channel.read_states[userId] = channel.id
+
+    channel.markModified('read_states')
     await channel.save()
     const cleanedChannel = ChannelResponseValidate(channel.toObject())
 
@@ -277,6 +327,297 @@ export class GuildsService {
     this.eventEmitter.emit('guild.channel_created', data, guildId)
 
     return cleanedChannel
+  }
+
+  async getChannel(channelId: string): Promise<ChannelResponse> {
+    const channel = await this.channelModel.findOne({
+      id: channelId,
+      deleted: false,
+    })
+    if (!channel) throw new NotFoundException()
+    return ChannelResponseValidate(channel)
+  }
+
+  async editChannel(
+    channelId: string,
+    dto: PatchChannelDto,
+  ): Promise<ChannelResponse> {
+    const channel = await this.channelModel.findOne({
+      id: channelId,
+      deleted: false,
+    })
+    if (!channel) throw new NotFoundException()
+
+    if (dto.name) channel.name = dto.name
+    if (dto.topic) channel.topic = dto.topic
+    if (channel.type === ChannelType.GUILD_VOICE) {
+      if (dto.bitrate && dto.bitrate > 16) channel.bitrate = dto.bitrate
+      if (dto.user_limit && dto.user_limit >= 0)
+        channel.user_limit = dto.user_limit
+    }
+    if (
+      channel.type < ChannelType.GUILD_VOICE &&
+      channel.type !== ChannelType.GUILD_CATEGORY
+    ) {
+      if (dto.rate_limit_per_user && dto.rate_limit_per_user > 0)
+        channel.rate_limit_per_user = dto.rate_limit_per_user
+      if (dto.nsfw === true || dto.nsfw === false) channel.nsfw = dto.nsfw
+    }
+
+    let channels = []
+    if (
+      channel.type === ChannelType.GUILD_TEXT ||
+      channel.type === ChannelType.GUILD_VOICE ||
+      channel.type === ChannelType.GUILD_CATEGORY
+    ) {
+      if (dto.parent_id || dto.position) {
+        if (!dto.parent_id) dto.parent_id = '0'
+        const parent = await this.channelModel.exists({
+          id: dto.parent_id,
+          type: ChannelType.GUILD_CATEGORY,
+          deleted: false,
+        })
+
+        const count = await this.channelModel.countDocuments({
+          guild_id: channel.guild_id,
+          parent_id: dto.parent_id,
+          deleted: false,
+        })
+
+        if (
+          !(dto.parent_id === channel.parent_id && count === 1) &&
+          (parent || dto.parent_id === '0')
+        ) {
+          if (dto.position > count || dto.position <= 0)
+            dto.position = count + 1
+
+          if (dto.parent_id !== channel.parent_id) {
+            channels = await this.channelModel.find(
+              {
+                $or: [
+                  {
+                    guild_id: channel.guild_id,
+                    parent_id: channel.parent_id,
+                    position: { $gte: channel.position },
+                  },
+                  {
+                    guild_id: channel.guild_id,
+                    parent_id: dto.parent_id,
+                    position: { $gte: channel.position },
+                  },
+                ],
+              },
+              '-_id id',
+            )
+
+            await this.channelModel.updateMany(
+              {
+                guild_id: channel.guild_id,
+                parent_id: channel.parent_id,
+                position: { $gt: channel.position },
+              },
+              { $inc: { position: -1 } },
+            )
+
+            await this.channelModel.updateMany(
+              {
+                guild_id: channel.guild_id,
+                parent_id: dto.parent_id,
+                position: { $gte: channel.position },
+              },
+              { $inc: { position: 1 } },
+            )
+            channel.position = dto.position
+            channel.parent_id = dto.parent_id
+          } else {
+            if (dto.position > channel.position) {
+              channels = await this.channelModel.find(
+                {
+                  guild_id: channel.guild_id,
+                  parent_id: channel.parent_id,
+                  $and: [
+                    { position: { $lte: dto.position } },
+                    { position: { $gt: channel.position } },
+                  ],
+                },
+                'id',
+              )
+              await this.channelModel.updateMany(
+                {
+                  guild_id: channel.guild_id,
+                  parent_id: channel.parent_id,
+                  $and: [
+                    { position: { $lte: dto.position } },
+                    { position: { $gt: channel.position } },
+                  ],
+                },
+                { $inc: { position: -1 } },
+              )
+              channel.position = dto.position
+              channel.parent_id = dto.parent_id
+            } else {
+              channels = await this.channelModel.find(
+                {
+                  guild_id: channel.guild_id,
+                  parent_id: channel.parent_id,
+                  $and: [
+                    { position: { $gte: dto.position } },
+                    { position: { $lt: channel.position } },
+                  ],
+                },
+                'id',
+              )
+              await this.channelModel.updateMany(
+                {
+                  guild_id: channel.guild_id,
+                  parent_id: channel.parent_id,
+                  $and: [
+                    { position: { $gte: dto.position } },
+                    { position: { $lt: channel.position } },
+                  ],
+                },
+                { $inc: { position: 1 } },
+              )
+              channel.position = dto.position
+              channel.parent_id = dto.parent_id
+            }
+          }
+        }
+      }
+    }
+    await channel.save()
+
+    const cleanedChannel = ChannelResponseValidate(channel.toObject())
+
+    const data = {
+      event: 'guild.channel_edited',
+      data: cleanedChannel,
+    }
+    this.eventEmitter.emit('guild.channel_edited', data, channel.guild_id)
+
+    const updatedChannelsIds = []
+    channels.map((ch) => updatedChannelsIds.push(ch.id))
+
+    const updatedChannels = await this.channelModel.find({
+      id: { $in: updatedChannelsIds },
+    })
+    const data2 = {
+      event: 'guild.channels_positions_updated',
+      data: {
+        channels: updatedChannels.map(UpdatedChannelsPositionsValidate),
+      },
+    }
+
+    this.eventEmitter.emit(
+      'guild.channels_positions_updated',
+      data2,
+      channel.guild_id,
+    )
+
+    return cleanedChannel
+  }
+
+  async deleteChannel(channelId: string): Promise<void> {
+    const channel = await this.channelModel.findOne({ id: channelId })
+    if (!channel) throw new NotFoundException()
+
+    let channels
+
+    channel.deleted = true
+    await channel.save()
+    if (channel.type !== 2) {
+      // ОБновляем позиции у каналов под ним
+      const channels = await this.channelModel.updateMany(
+        {
+          guild_id: channel.guild_id,
+          parent_id: channel.parent_id,
+          position: { $gt: channel.position },
+          deleted: false,
+        },
+        {
+          $inc: { position: -1 },
+        },
+      )
+
+      // Если у нас была категория, все немного сложнее
+    } else {
+      const count = await this.channelModel.countDocuments({
+        parent_id: channel.id,
+      })
+      channels = await this.channelModel.find(
+        {
+          $or: [
+            {
+              guild_id: channel.guild_id,
+              parent_id: channel.parent_id,
+              position: { $gt: channel.position },
+              deleted: false,
+            },
+            {
+              guild_id: channel.guild_id,
+              parent_id: channel.id,
+              deleted: false,
+            },
+          ],
+        },
+        '-_id id',
+      )
+
+      // Обновляем позиции у каналов, которые будут ниже тех, что будут подставлены из категории
+      await this.channelModel.updateMany(
+        {
+          guild_id: channel.guild_id,
+          parent_id: channel.parent_id,
+          position: { $gt: channel.position },
+          deleted: false,
+        },
+        {
+          $inc: { position: count - 1 },
+        },
+      )
+
+      // Подставляем каналы из удаленной категории
+      await this.channelModel.updateMany(
+        {
+          guild_id: channel.guild_id,
+          parent_id: channel.id,
+          deleted: false,
+        },
+        {
+          $inc: { position: channel.position - 1 },
+          parent_id: channel.parent_id,
+        },
+      )
+    }
+
+    // потом надо аудиты запилить
+    const data = {
+      event: 'guild.channel_deleted',
+      data: { id: channelId },
+    }
+
+    this.eventEmitter.emit('guild.channel_deleted', data, channel.guild_id)
+
+    const updatedChannelsIds = []
+    channels.map((ch) => updatedChannelsIds.push(ch.id))
+
+    const updatedChannels = await this.channelModel.find({
+      id: { $in: updatedChannelsIds },
+    })
+
+    const data2 = {
+      event: 'guild.channels_positions_updated',
+      data: {
+        channels: updatedChannels.map(UpdatedChannelsPositionsValidate),
+      },
+    }
+
+    this.eventEmitter.emit(
+      'guild.channels_positions_updated',
+      data2,
+      channel.guild_id,
+    )
+    return
   }
 
   async getChannels(guildId): Promise<ChannelResponse[]> {
@@ -373,11 +714,6 @@ export class GuildsService {
       })
     ).toObject()
     return RoleResponseValidate(role)
-  }
-
-  async getInvites(guildId) {
-    const invites = await this.inviteModel.find({ guild_id: guildId }, '-_id')
-    return invites
   }
 
   async createRole(
@@ -541,6 +877,100 @@ export class GuildsService {
     return cleanedRole
   }
 
+  async editPermissions(
+    channelId: string,
+    overwriteId: string,
+    dto: OverwritePermissionsDto,
+  ) {
+    const channel = await this.channelModel.findOne({
+      id: channelId,
+      deleted: false,
+    })
+    if (!channel) throw new NotFoundException()
+
+    let overwriteIndex = channel.permission_overwrites.findIndex(
+      (overwrite) => overwrite.id === overwriteId,
+    )
+    let overwriteData: PermissionsOverwrite
+    if (overwriteIndex !== -1)
+      overwriteData = channel.permission_overwrites[overwriteIndex]
+    else {
+      overwriteData = {
+        id: overwriteId,
+      }
+      const member = await this.userModel.exists({ id: overwriteId })
+      if (member) overwriteData.type = 0
+      else {
+        const role = await this.roleModel.exists({ id: overwriteId })
+        if (role) overwriteData.type = 1
+        else throw new BadRequestException()
+      }
+      channel.permission_overwrites.push(overwriteData)
+      overwriteIndex = channel.permission_overwrites.length - 1
+    }
+    if ((dto.allow || dto.allow === 0) && (dto.deny || dto.deny === 0)) {
+      overwriteData.allow = dto.allow &= ~(dto.deny | ComputedPermissions.OWNER)
+      overwriteData.deny = dto.deny
+    } else {
+      throw new BadRequestException()
+    }
+    channel.permission_overwrites[overwriteIndex] = overwriteData
+    channel.markModified('permission_overwrites')
+    await channel.save()
+    const data = {
+      event: 'guild.channel_permission_overwrite',
+      data: {
+        channel_id: channel.id,
+        data: channel.permission_overwrites[overwriteIndex],
+      },
+    }
+    this.eventEmitter.emit(
+      'guild.channel_permission_overwrite',
+      data,
+      channel?.guild_id,
+    )
+
+    return channel.permission_overwrites[overwriteIndex]
+  }
+
+  async deletePermissions(channelId: string, overwriteId: string) {
+    const channel = await this.channelModel.findOne({
+      id: channelId,
+      deleted: false,
+    })
+    if (!channel) throw new NotFoundException()
+
+    const overwriteIndex = channel.permission_overwrites.findIndex(
+      (overwrite) => overwrite.id === overwriteId,
+    )
+    if (!(overwriteIndex + 1)) throw new NotFoundException()
+
+    channel.permission_overwrites.splice(overwriteIndex, 1)
+    channel.markModified('permission_overwrites')
+    await channel.save()
+
+    const data = {
+      event: 'guild.channel_permission_overwrite_deleted',
+      data: {
+        guild_id: channel.guild_id,
+        channel_id: channel.id,
+        permission_overwrite_id: overwriteId,
+      },
+    }
+    this.eventEmitter.emit(
+      'guild.channel_permission_overwrite_deleted',
+      data,
+      channel?.guild_id,
+    )
+
+    return
+  }
+
+  async getInvites(guildId) {
+    const invites = await this.inviteModel.find({ guild_id: guildId }, '-_id')
+    return invites
+  }
+
   async addEmojiPack(packId: string, guildId: string): Promise<void> {
     const guild = await this.guildModel.findOne({ id: guildId })
     if (guild.emoji_packs_ids.includes(packId)) throw new ConflictException()
@@ -567,8 +997,282 @@ export class GuildsService {
     return
   }
 
+  async addRoleMember(
+    guildId: string,
+    roleId: string,
+    memberId: string,
+    userId: string,
+  ) {
+    if (!(await this.isMember(guildId, memberId))) throw new NotFoundException()
+
+    const role = await this.roleModel.findOne({ id: roleId, guild_id: guildId })
+    if (!role) throw new BadRequestException()
+
+    const positions = this.getPositions(userId, memberId)
+    if (positions[0] >= role.position) throw new ForbiddenException()
+
+    if (role.members.indexOf(memberId) + 1) throw new ConflictException()
+
+    role.members.push(memberId)
+    role.markModified('members')
+    await role.save()
+
+    const data = {
+      event: 'guild.role_member_added',
+      data: {
+        role_id: role.id,
+        member_id: memberId,
+      },
+    }
+    this.eventEmitter.emit('guild.role_member_added', data, guildId)
+  }
+
+  async removeRoleMember(
+    guildId: string,
+    roleId: string,
+    memberId: string,
+    userId: string,
+  ) {
+    if (!(await this.isMember(guildId, memberId))) throw new NotFoundException()
+
+    const role = await this.roleModel.findOne({ id: roleId, guild_id: guildId })
+    if (!role) throw new BadRequestException()
+
+    const positions = this.getPositions(userId, memberId)
+    if (positions[0] >= role.position) throw new ForbiddenException()
+
+    const memberIndex = role.members.indexOf(memberId)
+    if (!(memberIndex + 1)) throw new ConflictException()
+
+    role.members.splice(memberIndex, 1)
+    role.markModified('members')
+    await role.save()
+
+    const data = {
+      event: 'guild.role_member_removed',
+      data: {
+        role_id: role.id,
+        member_id: memberId,
+      },
+    }
+    this.eventEmitter.emit('guild.role_member_removed', data, guildId)
+  }
+
+  async getMemberRoles(guildId: string, memberId: string) {
+    if (!(await this.isMember(guildId, memberId))) throw new NotFoundException()
+    const roles = await this.roleModel.find({ member: memberId })
+    return roles.map(RoleResponseValidate)
+  }
+
+  async removeMember(
+    guildId: string,
+    memberId: string,
+    userId: string,
+  ): Promise<void> {
+    if (!(await this.isMember(guildId, memberId))) throw new NotFoundException()
+
+    const perms = await this.parser.computePermissions(guildId, memberId)
+    if (perms & ComputedPermissions.OWNER) throw new ForbiddenException()
+
+    const positions = this.getPositions(userId, memberId)
+    if (positions[0] >= positions[1]) throw new ForbiddenException()
+
+    const membersStr: string = await this.onlineManager.get(guildId)
+    if (membersStr) {
+      let members: string[] = JSON.parse(membersStr)
+      const index = members.indexOf(memberId)
+      if (index >= 0) {
+        members = members.filter((m) => m !== memberId)
+        await this.onlineManager.set(guildId, JSON.stringify(members))
+      }
+    }
+
+    const guild = await this.guildModel.updateOne(
+      { id: guildId, owner_id: { $ne: memberId }, 'members.id': memberId },
+      { $pull: { members: { id: memberId } } },
+    )
+    if (!guild) throw new NotFoundException()
+
+    await this.roleModel.updateMany(
+      { guild_id: guildId, members: memberId },
+      { $pull: { members: memberId } },
+    )
+
+    const data = {
+      event: 'guild.user_left',
+      data: {
+        id: memberId,
+        guild: guildId,
+      },
+    }
+    this.eventEmitter.emit('guild.user_left', data, guildId)
+
+    return
+  }
+
+  async createBan(
+    guildId: string,
+    dto: CreateBanDto,
+    banId: string,
+    userId: string,
+  ): Promise<GuildBan> {
+    if (!(await this.isOwner(guildId, userId))) {
+      if (await this.isOwner(guildId, banId)) throw new ForbiddenException()
+
+      if (await this.isMember(guildId, banId)) {
+        const positions = await this.getPositions(userId, banId)
+        const members: GuildMember[] = await this.getComparedMembers(
+          guildId,
+          userId,
+          banId,
+        )
+        // eslint-disable-next-line prettier/prettier
+        const perms = (members[0].permissions.allow &= ~members[1].permissions.allow)
+        if (
+          !(
+            perms &
+            (ComputedPermissions.OWNER |
+              ComputedPermissions.ADMINISTRATOR |
+              ComputedPermissions.MANAGE_MEMBERS)
+          )
+        )
+          throw new ForbiddenException()
+        if (positions[0] >= positions[1]) throw new ForbiddenException()
+      }
+    }
+    if (userId === banId) throw new BadRequestException()
+
+    const ban: GuildBan = {
+      user_id: banId,
+      reason: dto.reason?.trim() || '',
+      banned_by: userId,
+      date: Date.now(),
+    }
+
+    await this.guildModel.updateOne({ id: guildId }, { $push: { bans: ban } })
+
+    await this.guildModel.updateOne(
+      { id: guildId, 'members.id': banId },
+      { $pull: { members: { id: banId } } },
+    )
+
+    await this.roleModel.updateMany(
+      { guild_id: guildId, members: banId },
+      { $pull: { members: banId } },
+    )
+
+    const users = await this.userModel.find({
+      id: [ban.banned_by, ban.user_id],
+    })
+    ban.users = users.map(MessageUserValidate)
+
+    const data = {
+      event: 'guild.user_left',
+      data: {
+        id: banId,
+        guild: guildId,
+      },
+    }
+    this.eventEmitter.emit('guild.user_left', data, guildId)
+
+    return ban
+  }
+
+  async getBans(
+    guildId: string,
+    one?: boolean,
+    userId?: string,
+  ): Promise<GuildBan[] | GuildBan> {
+    if (one) {
+      const ban: GuildBan = await this.guildModel.find(
+        {
+          id: guildId,
+          'bans.user_id': userId,
+        },
+        'bans.$',
+      )[0]
+      if (ban) {
+        const users = await this.userModel.find({
+          id: [ban.banned_by, ban.user_id],
+        })
+        ban.users = users.map(MessageUserValidate)
+        return ban
+      }
+    } else {
+      const bans = <GuildBan[]>(
+        await this.guildModel.findOne(
+          {
+            id: guildId,
+          },
+          'bans',
+        )
+      ).bans
+      const userIds = []
+      bans.forEach((b: GuildBan) => userIds.push(b.user_id, b.banned_by))
+      const users = <User[]>await this.userModel.find({ id: userIds })
+
+      return <unknown>bans
+        .map((b: GuildBan) => {
+          b.users = []
+          b.users.push(
+            MessageUserValidate(users.find((u) => u.id === b.user_id)),
+            MessageUserValidate(users.find((u) => u.id === b.banned_by)),
+          )
+          return b
+        })
+        .sort((a, b) => b.date - a.date)
+    }
+  }
+
+  async removeBan(guildId: string, userId: string): Promise<void> {
+    const guild = await this.guildModel.updateOne(
+      { id: guildId, 'bans.user_id': userId },
+      { $pull: { bans: { user_id: userId } } },
+    )
+    if (!guild) throw new NotFoundException()
+  }
+
   async isMember(guildId: string, userId: string) {
-    return await this.guildModel.exists({ id: guildId, 'members.id': userId })
+    return this.guildModel.exists({ id: guildId, 'members.id': userId })
+  }
+
+  async isOwner(guildId: string, userId: string) {
+    return this.guildModel.exists({ id: guildId, owner_id: userId })
+  }
+  async getPositions(first: string, second: string) {
+    const roles = await this.roleModel.find({
+      $or: [{ members: first }, { members: second }],
+    })
+
+    let positionFirst: number
+    let positionSecond: number
+    roles.forEach((role) => {
+      if (!positionFirst && role.members.includes(first))
+        positionFirst = role.position
+      if (!positionSecond && role.members.includes(second))
+        positionSecond = role.position
+    })
+    return [positionFirst, positionSecond]
+  }
+
+  async getComparedMembers(guildId: string, first: string, second: string) {
+    const member = <GuildMember>(
+      (
+        await this.guildModel.findOne(
+          { id: guildId, 'members.id': first },
+          'members.$',
+        )
+      ).members[0]
+    )
+    const member2 = <GuildMember>(
+      (
+        await this.guildModel.findOne(
+          { id: guildId, 'members.id': second },
+          'members.$',
+        )
+      ).members[0]
+    )
+    return [member, member2]
   }
 }
 
@@ -581,5 +1285,5 @@ export class ExtendedGuild extends Guild {
 export class ExtendedMember extends GuildMember {
   user: UserResponse
   roles: string[]
-  сonnected: boolean
+  connected: boolean
 }

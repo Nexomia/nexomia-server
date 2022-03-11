@@ -1,25 +1,20 @@
 import {
-  IsArray,
   IsBoolean,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   Length,
 } from 'class-validator'
 
-export class CreateChannelDto {
+export class PatchChannelDto {
   /**
    * Channel name (2-100 characters)
    */
+  @IsOptional()
   @IsString()
   @Length(1, 20)
-  name: string
-
-  /**
-   * The type of channel
-   */
-  @IsNumber()
-  type: number
+  name?: string
 
   /**
    * Channel topic (0-1024 characters)
@@ -32,7 +27,7 @@ export class CreateChannelDto {
    * The bitrate (in bits) of the voice channel (voice only)
    */
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   bitrate?: number
 
   /**
@@ -50,11 +45,11 @@ export class CreateChannelDto {
   rate_limit_per_user?: number
 
   /**
-   * The channel's permission overwrites
+   * Sorting position of the channel
    */
   @IsOptional()
-  @IsArray()
-  permission_overwrites?: []
+  @IsNumber()
+  position?: number
 
   /**
    * Id of the parent category for a channel

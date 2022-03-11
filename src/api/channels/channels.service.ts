@@ -1,18 +1,17 @@
 import {
   BadRequestException,
-  CACHE_MANAGER,
   ForbiddenException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { InjectModel } from '@nestjs/mongoose'
-import { Cache } from 'cache-manager'
 import { Model } from 'mongoose'
 import { UniqueID } from 'nodejs-snowflake'
 import { ParserUtils } from 'utils/parser/parser.utils'
 import emojiRegex from 'emoji-regex'
+import { Guild, GuildDocument } from 'api/guilds/schemas/guild.schema'
+import { PatchChannelDto } from './dto/patch-channel.dto'
 import { EmojiResponseValidate } from './../emojis/responses/emoji.response'
 import {
   EmojiPack,
@@ -23,7 +22,11 @@ import { config } from './../../app.config'
 import { Emoji, EmojiDocument } from './../emojis/schemas/emoji.schema'
 import { File, FileType, FileDocument } from './../files/schemas/file.schema'
 import { GuildsService } from './../guilds/guilds.service'
-import { ComputedPermissions } from './../guilds/schemas/role.schema'
+import {
+  ComputedPermissions,
+  Role,
+  RoleDocument,
+} from './../guilds/schemas/role.schema'
 import { Invite, InviteDocument } from './../invites/schemas/invite.schema'
 import { UserResponse } from './../users/responses/user.response'
 import { User, UserDocument } from './../users/schemas/user.schema'
@@ -48,47 +51,86 @@ import { Message, MessageDocument, MessageType } from './schemas/message.schema'
 @Injectable()
 export class ChannelsService {
   constructor(
+    @InjectModel(Guild.name) private guildModel: Model<GuildDocument>,
     @InjectModel(Channel.name) private channelModel: Model<ChannelDocument>,
     @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
     @InjectModel(Invite.name) private inviteModel: Model<InviteDocument>,
+    @InjectModel(Role.name) private roleModel: Model<RoleDocument>,
     @InjectModel(EmojiPack.name)
     private emojiPackModel: Model<EmojiPackDocument>,
     @InjectModel(Emoji.name) private emojiModel: Model<EmojiDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(File.name) private fileModel: Model<FileDocument>,
-    @Inject(CACHE_MANAGER) private onlineManager: Cache,
     private guildService: GuildsService,
     private parser: ParserUtils,
     private eventEmitter: EventEmitter2,
     private guildsService: GuildsService,
   ) {}
 
-  async getChannel(channelId: string): Promise<ChannelResponse> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+  async getChannel(
+    channelId: string,
+    userId: string,
+  ): Promise<ChannelResponse> {
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
+
+    channel.last_read_snowflake = channel.read_states[userId] || '0'
     return ChannelResponseValidate(channel)
   }
+
+  async editChannel(
+    channelId: string,
+    dto: PatchChannelDto,
+    userId: string,
+  ): Promise<ChannelResponse> {
+    const channel = await this.getExistsChannel(channelId)
+    if (!channel) throw new NotFoundException()
+
+    // 0 and 1 - DM channels
+    if (channel.type > 1) {
+      throw new ForbiddenException()
+    } else {
+      if (channel.owner_id !== userId) throw new ForbiddenException()
+    }
+    if (dto.name) channel.name = dto.name
+    if (dto.topic) channel.topic = dto.topic
+    if (channel.type === ChannelType.GUILD_VOICE) {
+      if (dto.bitrate && dto.bitrate > 16) channel.bitrate = dto.bitrate
+      if (dto.user_limit && dto.user_limit >= 0)
+        channel.user_limit = dto.user_limit
+    }
+    if (
+      channel.type < ChannelType.GUILD_VOICE &&
+      channel.type !== ChannelType.GUILD_CATEGORY
+    ) {
+      if (dto.rate_limit_per_user && dto.rate_limit_per_user > 0)
+        channel.rate_limit_per_user = dto.rate_limit_per_user
+      if (dto.nsfw === true || dto.nsfw === false) channel.nsfw = dto.nsfw
+    }
+
+    channel.last_read_snowflake = channel.read_states[userId] || '0'
+    !channel.notify_states[userId]
+      ? channel.guild_id
+        ? (channel.message_notifications = (
+            await this.guildModel.findOne(
+              { id: channel.guild_id },
+              `notify_states.${userId}`,
+            )
+          ).default_message_notifications)
+        : (channel.message_notifications =
+            channel.default_message_notifications)
+      : (channel.message_notifications = channel.notify_states[userId])
+
+    return ChannelResponseValidate(channel)
+  }
+
   async deleteChannel(channelId: string, userId: string): Promise<void> {
     const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
 
     // 0 and 1 - DM channels
     if (channel.type > 1) {
-      if (!this.guildsService.isMember(channel.guild_id, userId))
-        throw new ForbiddenException()
-      const perms = await this.parser.computePermissions(
-        channel.guild_id,
-        userId,
-      )
-      if (
-        !(
-          perms &
-          (ComputedPermissions.OWNER |
-            ComputedPermissions.ADMINISTRATOR |
-            ComputedPermissions.MANAGE_CHANNELS)
-        )
-      )
-        throw new ForbiddenException()
+      throw new ForbiddenException()
     } else {
       if (channel.owner_id !== userId) throw new ForbiddenException()
     }
@@ -115,7 +157,7 @@ export class ChannelsService {
     userId,
     one?,
   ): Promise<MessageResponse[] | MessageResponse> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -277,6 +319,14 @@ export class ChannelsService {
           }
         })
       }
+      if (message.emoji_ids?.length) {
+        message.emojis = []
+        message.emoji_ids.forEach((em) => {
+          const emoji = emojis.find((e) => e.id === em)
+          emoji.url = `https://cdn.nx.wtf/${emoji.id}/emoji.webp`
+          message.emojis.push(EmojiResponseValidate(emoji))
+        })
+      }
       if (message.sticker_id) {
         const indexSticker = emojis.findIndex(
           (f) => f.id === message.sticker_id,
@@ -290,12 +340,30 @@ export class ChannelsService {
     }
 
     if (!data.length && one) throw new NotFoundException()
-    if (one && filters?.ids.length === 1) return parseMessage(data[0])
+    if (!data.length) return []
+    if (one && filters?.ids.length === 1) {
+      if (
+        !channel.read_states[userId] ||
+        BigInt(channel.read_states[userId]) < BigInt(data[0].id)
+      ) {
+        channel.read_states[userId] = data[0].id
+        channel.markModified('read_states')
+        await channel.save()
+      }
+      return parseMessage(data[0])
+    }
 
     const ready = data
       .map(parseMessage)
       .sort((a, b) => (a.created > b.created ? 1 : -1))
-
+    if (
+      !channel.read_states[userId] ||
+      BigInt(channel.read_states[userId]) < BigInt(data[0].id)
+    ) {
+      channel.read_states[userId] = data[0].id
+      channel.markModified('read_states')
+      await channel.save()
+    }
     return ready
   }
 
@@ -305,10 +373,15 @@ export class ChannelsService {
     messageDto: CreateMessageDto,
     systemData?: any,
   ): Promise<MessageResponse> {
-    if (messageDto.content && messageDto.content.replaceAll(' ', '') === '')
+    if (
+      messageDto.content === ' ' ||
+      (messageDto.content &&
+        messageDto.content.replaceAll(/(\n|\r)|(\s){2,}/g, '') === '')
+    )
       throw new BadRequestException()
 
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
+    if (!channel && systemData) return
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -376,9 +449,35 @@ export class ChannelsService {
       })
       if (!user) throw new ForbiddenException()
       message.sticker_id = messageDto.sticker_id
-    } else {
-      message.content = messageDto.content?.replaceAll(/(\s){2,}/gm, ' ')
-      // const emojis = message.content.matchAll()
+    } else if (messageDto.content) {
+      message.content = messageDto.content?.trim()
+      const emojisMatch = Array.from(
+        message.content.matchAll(/(<e:)([0-9]{1,})(>)/g),
+      )
+      const emoji_ids = []
+      emojisMatch.forEach((em) => {
+        emoji_ids.push(em[2])
+      })
+      if (emoji_ids.length) {
+        const pack_ids = []
+        const emojis = await this.emojiModel.find({ id: emoji_ids })
+        if (emojis) {
+          emojis.forEach((em) => {
+            pack_ids.push(em.pack_id)
+          })
+          const user = (await this.userModel.findOne({ id: userId })).toObject()
+          const allowed_packs = pack_ids.filter((id) =>
+            user.emoji_packs_ids.includes(id),
+          )
+          emojisMatch.forEach((e) => {
+            const emoji = emojis.find((em) => em.id === e[2])
+            if (emoji) {
+              if (allowed_packs.includes(emoji.pack_id))
+                message.emoji_ids.push(emoji.id)
+            }
+          })
+        }
+      }
     }
 
     let forwarded_messages: Message[]
@@ -432,6 +531,11 @@ export class ChannelsService {
       for (const att of attachments) message.attachment_ids.push(att.id)
     }
     await message.save()
+    channel.last_message_id = message.id
+    channel.read_states[userId] = message.id
+    channel.markModified('read_states')
+    await channel.save()
+
     const message2 = <MessageResponse>(
       await this.getChannelMessages(
         message.channel_id,
@@ -440,6 +544,7 @@ export class ChannelsService {
         true,
       )
     )
+
     const data = {
       event: 'message.created',
       data: message2,
@@ -472,7 +577,7 @@ export class ChannelsService {
       if (pack.type === EmojiPackType.STICKER) throw new BadRequestException()
       reaction = emoji.id
     }
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -554,7 +659,7 @@ export class ChannelsService {
     emojiId: string,
     userId: string,
   ): Promise<void> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -611,7 +716,7 @@ export class ChannelsService {
     messageDto: EditMessageDto,
     userId: string,
   ) {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -648,8 +753,38 @@ export class ChannelsService {
     if (!message) throw new NotFoundException()
 
     const cachedMessage = message.toObject()
-    if (messageDto.content && messageDto.content !== message.content) {
-      message.content = messageDto.content
+    if (
+      messageDto.content.trim() !== message.content &&
+      messageDto.content !== ' '
+    ) {
+      message.content = messageDto.content.trim()
+      const emojisMatch = Array.from(
+        message.content.matchAll(/(<e:)([0-9]{1,})(>)/g),
+      )
+      const emoji_ids = []
+      emojisMatch.forEach((em) => {
+        emoji_ids.push(em[2])
+      })
+      if (emoji_ids.length) {
+        const pack_ids = []
+        const emojis = await this.emojiModel.find({ id: emoji_ids })
+        if (emojis) {
+          emojis.forEach((em) => {
+            pack_ids.push(em.pack_id)
+          })
+          const user = (await this.userModel.findOne({ id: userId })).toObject()
+          const allowed_packs = pack_ids.filter((id) =>
+            user.emoji_packs_ids.includes(id),
+          )
+          emojisMatch.forEach((e) => {
+            const emoji = emojis.find((em) => em.id === e[2])
+            if (emoji) {
+              if (allowed_packs.includes(emoji.pack_id))
+                message.emoji_ids.push(emoji.id)
+            }
+          })
+        }
+      }
       changes++
     }
     let forwarded_messages: Message[]
@@ -715,7 +850,7 @@ export class ChannelsService {
   }
 
   async deleteMessage(channelId, messageId, userId): Promise<void> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -791,7 +926,7 @@ export class ChannelsService {
     messageIds: string[],
     userId: string,
   ) {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -853,8 +988,6 @@ export class ChannelsService {
     return
   }
 
-  // async editPermissions(channelId, overwriteId) {}
-
   async getInvites(channelId: string) {
     const invites = await this.inviteModel.find(
       { channel_id: channelId },
@@ -868,7 +1001,7 @@ export class ChannelsService {
     inviteDto: CreateInviteDto,
     userId,
   ): Promise<Invite> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -907,8 +1040,9 @@ export class ChannelsService {
 
   // async followChannel(channelId: string, followDto: FollowChannelDto) {}
 
-  async typing(channelId, userId) {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+  async typing(channelId, userId, type?) {
+    if (type && (type < 0 || type > 4)) throw new BadRequestException()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new BadRequestException()
     if (
       channel.type === ChannelType.DM ||
@@ -939,14 +1073,62 @@ export class ChannelsService {
       data: {
         user_id: userId,
         channel_id: channelId,
+        type: type || 0,
       },
     }
     this.eventEmitter.emit('channel.typing', data, channel?.guild_id)
     return
   }
 
+  async read(
+    channelId: string,
+    userId: string,
+    messageId?: string,
+  ): Promise<void> {
+    const channel = await this.getExistsChannel(channelId)
+    if (!channel) throw new BadRequestException()
+    if (
+      channel.type === ChannelType.DM ||
+      channel.type === ChannelType.GROUP_DM
+    ) {
+      if (!channel.recipients.includes(userId)) throw new ForbiddenException()
+    } else {
+      if (!(await this.guildService.isMember(channel.guild_id, userId)))
+        throw new ForbiddenException()
+      const perms = await this.parser.computePermissions(
+        channel.guild_id,
+        userId,
+        channelId,
+      )
+      if (
+        !(
+          perms &
+          (ComputedPermissions.OWNER |
+            ComputedPermissions.ADMINISTRATOR |
+            ComputedPermissions.READ_MESSAGES)
+        )
+      )
+        throw new ForbiddenException()
+    }
+    if (messageId) {
+      const msg = await this.messageModel.findOne({
+        id: messageId,
+        channel_id: channelId,
+      })
+      if (msg) channel.read_states[userId] = messageId
+      else throw new BadRequestException()
+    } else {
+      channel.read_states[userId] = new UniqueID(config.snowflake)
+        .getUniqueID()
+        .toString()
+    }
+    channel.markModified('read_states')
+    await channel.save()
+    return
+  }
+
   async pinMessage(channelId, messageId, userId): Promise<void> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -998,12 +1180,17 @@ export class ChannelsService {
       },
     }
     this.eventEmitter.emit('message.pinned', data, channel?.guild_id)
-    this.createMessage(userId, channelId, {}, { type: MessageType.PIN })
+    this.createMessage(
+      userId,
+      channelId,
+      { forwarded_messages: [messageId] },
+      { type: MessageType.PIN },
+    )
     return
   }
 
   async deletePinnedMessage(channelId, messageId, userId): Promise<void> {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||
@@ -1048,7 +1235,7 @@ export class ChannelsService {
   }
 
   async getPinnedMessages(channelId, userId) {
-    const channel = (await this.getExistsChannel(channelId)).toObject()
+    const channel = await this.getExistsChannel(channelId)
     if (!channel) throw new NotFoundException()
     if (
       channel.type === ChannelType.DM ||

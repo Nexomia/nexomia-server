@@ -31,7 +31,7 @@ export const EmojiPackResponseSchema = myzod.object({
   name: myzod.string(),
   description: myzod.string().optional(),
   icon: myzod.string().optional(),
-  owner_id: myzod.string(),
+  owner_id: myzod.string().optional(),
   owner: EmojiPackOwnerResponseSchema.allowUnknownKeys().optional(),
   stats: myzod
     .object({
@@ -41,6 +41,7 @@ export const EmojiPackResponseSchema = myzod.object({
     .allowUnknownKeys()
     .optional(),
   emojis: myzod.array(myzod.unknown()).optional(),
+  available: myzod.boolean().optional(),
 })
 
 export type EmojiPackResponse = Infer<typeof EmojiPackResponseSchema>

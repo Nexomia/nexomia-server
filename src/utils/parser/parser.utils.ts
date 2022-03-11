@@ -56,7 +56,7 @@ export class ParserUtils {
 
     let permissions: number
     const roles = await this.roleModel.aggregate([
-      { $match: { guild_id: guildId, members: userId } },
+      { $match: { guild_id: guildId, id: { $in: guildMember.roles } } },
       { $project: { id: 1, position: 1, permissions: 1 } },
       { $sort: { position: -1 } },
     ])
@@ -87,11 +87,13 @@ export class ParserUtils {
             id: channelId,
             'permission_overwrites.id': { $in: rolesArray },
           })
-          .sort({ 'permission_overwrites.type': -1 })
+          .sort({ 'permission_overwrites.type': 1 })
       )[0]
-
+      channel.permission_overwrites = channel.permission_overwrites.filter(
+        (po) => rolesArray.includes(po.id),
+      )
       let overwite_user: PermissionsOverwrite
-      if (channel.permission_overwrites[0].type === 1)
+      if (channel.permission_overwrites[0].type === 0)
         overwite_user = channel.permission_overwrites.shift()
       const overwrites: PermissionsOverwrite[] = channel.permission_overwrites
       overwrites.sort((a, b) => {
@@ -122,8 +124,8 @@ export class ParserUtils {
     if (guildMember.permissions) {
       permissions &= ~guildMember.permissions.deny
       permissions |= guildMember.permissions.allow
-      return permissions
     }
+    return permissions
   }
 
   encodeURI(text) {

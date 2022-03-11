@@ -10,33 +10,42 @@ import {
   Query,
 } from '@nestjs/common'
 import { DUser } from 'decorators/user.decorator'
+import { PatchChannelDto } from './dto/patch-channel.dto'
 import { ChannelResponse } from './responses/channel.response'
 import { MessageResponse } from './responses/message.response'
 import { Invite } from './../invites/schemas/invite.schema'
 import { AccessToken } from './../../interfaces/access-token.interface'
 import { GetChannelMessagesDto } from './dto/get-channel-messages.dto'
-// import { FollowChannelDto } from './dto/follow-channel.dto'
 import { CreateInviteDto } from './dto/create-invite.dto'
-// import { OverwritePermissionsDto } from './dto/overwrite-permissions.dto'
 import { BulkDeleteDto } from './dto/bulk-delete.dto'
 import { EditMessageDto } from './dto/edit-message.dto'
 import { CreateMessageDto } from './dto/create-message.dto'
 import { ChannelsService } from './channels.service'
-// import { AddDMRecipientDto } from './dto/add-dm-recipient.dto'
 
 @Controller('channels')
 export class ChannelsController {
   constructor(private channelsService: ChannelsService) {}
 
   @Get(':channelId')
-  async get(@Param('channelId') channelId): Promise<ChannelResponse> {
-    return await this.channelsService.getChannel(channelId)
+  async get(
+    @Param('channelId') channelId: string,
+    @DUser() user: AccessToken,
+  ): Promise<ChannelResponse> {
+    return await this.channelsService.getChannel(channelId, user.id)
   }
 
-  /*@Delete(':channelId')
-  async delete(@Param('channelId') channelId) {
-    return await this.channelsService.deleteChannel(channelId)
-  }*/
+  @Patch(':channelId')
+  async edit(
+    @Param('channelId') channelId,
+    @Body() patchChannelDto: PatchChannelDto,
+    @DUser() user: AccessToken,
+  ): Promise<ChannelResponse> {
+    return await this.channelsService.editChannel(
+      channelId,
+      patchChannelDto,
+      user.id,
+    )
+  }
 
   @Delete(':channelId')
   async deleteChannel(
@@ -182,17 +191,6 @@ export class ChannelsController {
     )
   }
 
-  /*@Put(':channelId/permissions/:overwriteId')
-  async editPermissions(
-    @Param() params,
-    @Body() overwritePermissionsDto: OverwritePermissionsDto,
-  ) {
-    return await this.channelsService.editPermissions(
-      params.channelId,
-      overwritePermissionsDto,
-    )
-  }*/
-
   @Get(':channelId/invites')
   async getInvites(@Param('channelId') channelId): Promise<Invite[]> {
     return await this.channelsService.getInvites(channelId)
@@ -220,8 +218,21 @@ export class ChannelsController {
   }*/
 
   @Post(':channelId/typing')
-  async typing(@Param('channelId') channelId, @DUser() user: AccessToken) {
-    return await this.channelsService.typing(channelId, user.id)
+  async typing(
+    @Param('channelId') channelId,
+    @Body('type') type: string,
+    @DUser() user: AccessToken,
+  ) {
+    return await this.channelsService.typing(channelId, user.id, type)
+  }
+
+  @Post(':channelId/read')
+  async read(
+    @Param('channelId') channelId,
+    @Body('message_id') messageId: string,
+    @DUser() user: AccessToken,
+  ) {
+    return await this.channelsService.read(channelId, user.id, messageId)
   }
 
   @Put(':channelId/pins/:messageId')

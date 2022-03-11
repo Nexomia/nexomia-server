@@ -68,4 +68,5 @@ export enum ComputedPermissions {
   ADD_EXTERNAL_REACTIONS = 1 << 18,
   BULK_DELETE = 1 << 19,
   MANAGE_CHANNELS = 1 << 20,
+  MANAGE_MEMBERS = 1 << 21,
 }

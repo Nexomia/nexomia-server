@@ -18,11 +18,11 @@ export class User extends Connected {
   /**
    * The user's username, not unique across the platform
    */
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   username?: string
 
   /**
-   * The user's 4-digit nexo-tag
+   * The user's 3-7-digit nexo-tag
    */
   @Prop({ required: true })
   discriminator?: string
