@@ -134,6 +134,8 @@ export class GuildsService {
         },
       ])
     )[0]
+    if (!guild) throw new NotFoundException()
+
     guild.channels.map((channel: Channel) => {
       channel.last_read_snowflake = channel?.read_states[userId] || '0'
       !channel.notify_states || !channel.notify_states[userId]
@@ -656,6 +658,7 @@ export class GuildsService {
         },
       ])
     )[0]
+    if (!guild) throw new NotFoundException()
 
     for (const member in guild.members) {
       guild.members[member].user = MemberUserResponseValidate(
@@ -685,6 +688,8 @@ export class GuildsService {
           '-_id id username discriminator avatar banner description status presence premium_type public_flags',
         )
     ).toObject()
+    if (!user) throw new NotFoundException()
+
     const roles: string[] = []
     //const rolesArray = (await this.roleModel.find({ guild_id: guildId, members: { $in: userId } }, 'id')).forEach(role => roles.push(role.id))
     member.user = MemberUserResponseValidate(user)
@@ -713,6 +718,7 @@ export class GuildsService {
         deleted: false,
       })
     ).toObject()
+    if (!role) throw new NotFoundException()
     return RoleResponseValidate(role)
   }
 
