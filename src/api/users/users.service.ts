@@ -250,7 +250,7 @@ export class UsersService {
   async getGuilds(userId, sortData): Promise<Guild[]> {
     const guilds = await this.guildModel
       .find({ 'members.id': userId })
-      .select('-_id id name icon owner_id')
+      .select('-_id id name icon owner_id default_channel nsfw')
       .lean()
     const guild_ids: string[] = []
     guilds.map((g) => {
